@@ -1,0 +1,2605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mandel Gin</title>
+    <style>
+        :root {
+            --baize-color: #076324;
+            --baize-darker: #054d1b;
+            --gold-color: #d4af37;
+            --card-bg: #fff;
+            --text-color: #fff;
+            --highlight-color: #f8d775;
+            --button-color: #2c7873;
+            --button-hover: #3aafa9;
+            --button-text: #fff;
+            --error-color: #ff6b6b;
+            --success-color: #6bff6b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background-color: var(--baize-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            padding: 10px;
+            background-image: radial-gradient(var(--baize-darker) 15%, transparent 15%);
+            background-size: 10px 10px;
+        }
+
+        .game-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 10px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--gold-color);
+            padding-bottom: 10px;
+        }
+
+        h1 {
+            font-family: 'Georgia', serif;
+            font-size: 2.5rem;
+            color: var(--gold-color);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .game-status {
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+
+        .game-status.highlight {
+            background-color: var(--highlight-color);
+            color: #000;
+            font-weight: bold;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.8; }
+            50% { opacity: 1; }
+            100% { opacity: 0.8; }
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-areas:
+                "opponent opponent"
+                "deck discard"
+                "player player"
+                "controls controls";
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .game-board {
+                grid-template-areas:
+                    "opponent opponent opponent"
+                    "deck discard controls"
+                    "player player player";
+                grid-template-columns: 1fr 1fr 2fr;
+            }
+        }
+
+        .opponent-area {
+            grid-area: opponent;
+            min-height: 150px;
+            border-radius: 10px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .player-area {
+            grid-area: player;
+            min-height: 180px;
+            border-radius: 10px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .deck-area {
+            grid-area: deck;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .discard-area {
+            grid-area: discard;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .controls-area {
+            grid-area: controls;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .hand {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: center;
+            min-height: 100px;
+            width: 100%;
+        }
+
+        .card-placeholder {
+            width: 60px;
+            height: 90px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            border: 1px dashed rgba(255, 255, 255, 0.3);
+        }
+
+        @media (min-width: 768px) {
+            .card-placeholder {
+                width: 80px;
+                height: 112px;
+            }
+        }
+
+        .card {
+            width: 60px;
+            height: 90px;
+            background-color: var(--card-bg);
+            border-radius: 5px;
+            position: relative;
+            box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 5px;
+            font-weight: bold;
+        }
+
+        @media (min-width: 768px) {
+            .card {
+                width: 80px;
+                height: 112px;
+            }
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 2px 5px 10px rgba(0, 0, 0, 0.4);
+        }
+
+        .card.selected {
+            box-shadow: 0 0 0 3px var(--highlight-color);
+        }
+
+        .card.facedown {
+            background-color: #7b5d94;
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0, 0, 0, 0.1) 10px, rgba(0, 0, 0, 0.1) 20px);
+        }
+
+        .card-top, .card-bottom {
+            display: flex;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .card-center {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+            font-size: 24px;
+        }
+
+        .card.hearts, .card.diamonds {
+            color: #e44145;
+        }
+
+        .card.clubs, .card.spades {
+            color: #333;
+        }
+
+        .deck, .discard {
+            position: relative;
+            width: 80px;
+            height: 112px;
+            border-radius: 5px;
+            background-color: var(--card-bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .deck {
+            background-color: #7b5d94;
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0, 0, 0, 0.1) 10px, rgba(0, 0, 0, 0.1) 20px);
+        }
+
+        .deck:hover, .discard:hover {
+            transform: scale(1.05);
+            box-shadow: 2px 5px 10px rgba(0, 0, 0, 0.4);
+        }
+
+        .deck.disabled, .discard.disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .deck.disabled:hover, .discard.disabled:hover {
+            transform: none;
+            box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .deck-count, .discard-count {
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            position: absolute;
+            top: -10px;
+            right: -10px;
+        }
+
+        .deck::after {
+            content: '';
+            position: absolute;
+            width: 80px;
+            height: 112px;
+            background-color: #7b5d94;
+            border-radius: 5px;
+            z-index: -1;
+            top: 2px;
+            left: 2px;
+        }
+
+        .discard::after {
+            content: '';
+            position: absolute;
+            width: 80px;
+            height: 112px;
+            background-color: var(--card-bg);
+            border-radius: 5px;
+            z-index: -1;
+            top: 2px;
+            left: 2px;
+        }
+
+        .descent-card {
+            margin-top: 20px;
+            border: 2px solid var(--gold-color);
+        }
+
+        .descent-value {
+            margin-top: 5px;
+            font-size: 0.9rem;
+            color: var(--gold-color);
+        }
+
+        button {
+            background-color: var(--button-color);
+            color: var(--button-text);
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        button:hover {
+            background-color: var(--button-hover);
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .score-container {
+            margin-top: 20px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        th {
+            background-color: rgba(0, 0, 0, 0.3);
+        }
+
+        .sets-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+            justify-content: center;
+        }
+
+        .set {
+            display: flex;
+            gap: 2px;
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 5px;
+            border-radius: 5px;
+        }
+
+        .unmatched-cards {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .hand-title {
+            align-self: flex-start;
+            margin-bottom: 5px;
+            color: var(--gold-color);
+            font-weight: bold;
+        }
+
+        .dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .dialog {
+            background-color: var(--baize-color);
+            border: 3px solid var(--gold-color);
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 90%;
+            width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .dialog h2 {
+            color: var(--gold-color);
+            margin-bottom: 15px;
+            text-align: center;
+            font-family: 'Georgia', serif;
+        }
+
+        .dialog-content {
+            margin-bottom: 20px;
+        }
+
+        .dialog-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .rules {
+            cursor: pointer;
+            color: var(--gold-color);
+            text-decoration: underline;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.9rem;
+        }
+
+        .menu-button {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: transparent;
+            color: var(--gold-color);
+            box-shadow: none;
+            font-size: 1.2rem;
+            padding: 5px 10px;
+        }
+
+        /* Animation for card dealing */
+        @keyframes dealCard {
+            0% {
+                transform: translate(-50%, -50%) scale(0.5);
+                opacity: 0;
+            }
+            100% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .dealing {
+            animation: dealCard 0.3s ease-out;
+        }
+
+        /* Score display animation */
+        @keyframes scoreReveal {
+            0% {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .score-reveal {
+            animation: scoreReveal 0.5s ease-out;
+        }
+
+        /* Highlight for valid sets */
+        .valid-set {
+            box-shadow: 0 0 10px var(--success-color);
+        }
+
+        /* Sets management styles */
+        .sets-manager {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .sets-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+            justify-content: center;
+        }
+
+        .sets-selector-title {
+            width: 100%;
+            font-weight: bold;
+            color: var(--gold-color);
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        .no-select {
+            user-select: none;
+        }
+
+        .how-to-play {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            text-align: center;
+            border-radius: 5px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 500px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .card {
+                width: 50px;
+                height: 75px;
+                font-size: 12px;
+            }
+            
+            .deck, .discard {
+                width: 70px;
+                height: 98px;
+            }
+            
+            .deck::after, .discard::after {
+                width: 70px;
+                height: 98px;
+            }
+            
+            .card-top, .card-bottom {
+                font-size: 14px;
+            }
+            
+            .card-center {
+                font-size: 20px;
+            }
+            
+            .hand {
+                gap: 3px;
+            }
+
+            .card-placeholder {
+                width: 50px;
+                height: 75px;
+            }
+
+            .game-status {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <button id="menuButton" class="menu-button">≡</button>
+        <span id="rulesButton" class="rules">Rules</span>
+        
+        <header>
+            <h1>Mandel Gin</h1>
+        </header>
+
+        <div id="gameStatus" class="game-status">Welcome to Mandel Gin</div>
+
+        <div class="game-board">
+            <div class="opponent-area">
+                <div class="hand-title">Opponent's Hand</div>
+                <div id="opponentHand" class="hand"></div>
+                <div id="opponentSets" class="sets-display" style="display: none;"></div>
+            </div>
+
+            <div class="deck-area">
+                <div class="deck" id="deck">
+                    <div class="deck-count" id="deckCount">0</div>
+                </div>
+                <div class="deck descent-card" id="descentCard">
+                </div>
+                <div class="descent-value" id="descentValue"></div>
+            </div>
+
+            <div class="discard-area">
+                <div class="discard" id="discard">
+                    <div class="discard-count" id="discardCount">0</div>
+                </div>
+            </div>
+
+            <div class="controls-area">
+                <div id="gameControls">
+                    <button id="newGameButton">New Game</button>
+                    <div class="action-buttons" id="actionButtons" style="display: none;">
+                        <button id="goDownButton" disabled>Go Down</button>
+                        <button id="ginButton" disabled>Gin</button>
+                        <button id="grandGinButton" disabled>Grand Gin</button>
+                    </div>
+                </div>
+                <div id="setsManager" class="sets-manager" style="display: none;">
+                    <div class="sets-selector-title">Organize Your Sets</div>
+                    <div id="availableCards" class="sets-selector"></div>
+                    <div class="sets-selector">
+                        <button id="createSetButton">Create Set</button>
+                        <button id="clearSetButton">Clear Selection</button>
+                    </div>
+                    <div id="currentSets"></div>
+                </div>
+            </div>
+
+            <div class="player-area">
+                <div class="hand-title">Your Hand</div>
+                <div id="playerHand" class="hand"></div>
+                <div id="playerSets" class="sets-display" style="display: none;"></div>
+                <div id="playerUnmatched" class="unmatched-cards" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="score-container">
+            <h3>Score</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Points</th>
+                        <th>Cocottes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>You</td>
+                        <td id="playerPoints">0</td>
+                        <td id="playerCocottes">0</td>
+                    </tr>
+                    <tr>
+                        <td>Opponent</td>
+                        <td id="opponentPoints">0</td>
+                        <td id="opponentCocottes">0</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="howToPlay" class="how-to-play">
+            <p><strong>Quick Guide:</strong> Draw a card from the deck or discard pile on your turn. Form sets (3+ cards of same value or sequential in same suit). Discard to end your turn. Win by forming sets with all or most cards.</p>
+        </div>
+    </div>
+
+    <!-- Rules Dialog -->
+    <div id="rulesDialog" class="dialog-overlay" style="display: none;">
+        <div class="dialog">
+            <h2>Mandel Gin Rules</h2>
+            <div class="dialog-content">
+                <h3>Objective</h3>
+                <p>Form sets and minimize the value of unmatched cards in your hand.</p>
+                
+                <h3>Card Values</h3>
+                <p>Ace: 15 points<br>
+                King, Queen, Jack: 10 points each<br>
+                Number Cards: Face value (2-10 points)</p>
+                
+                <h3>Sets</h3>
+                <p><strong>Matching Sets:</strong> 3 or 4 cards of the same value (e.g., 2♥, 2♠, 2♦)<br>
+                <strong>Runs:</strong> 3 or more consecutive cards of the same suit (e.g., A♥, 2♥, 3♥, 4♥)</p>
+                <p>Aces can be high or low or both. Sets have no maximum size.</p>
+                
+                <h3>Gameplay</h3>
+                <p>1. Players take turns drawing a card from either the stock pile or discard pile<br>
+                2. After drawing, discard one card (cannot discard the same card just picked from discard)<br>
+                3. Try to form sets with your cards</p>
+                
+                <h3>Winning Conditions</h3>
+                <p><strong>Grand Gin:</strong> All 11 cards in sets<br>
+                <strong>Gin:</strong> 10 cards in sets, discard the unmatched card<br>
+                <strong>Go Down:</strong> The total value of unmatched cards is equal to or less than the Descent card value<br>
+                <strong>Go Bust:</strong> If a player "Goes Down," but their opponent has unmatched cards with a lower total</p>
+                
+                <h3>The Descent Card</h3>
+                <p>Hearts or Spades: Hand scores double points<br>
+                Clubs or Diamonds: Hand scores single points<br>
+                If Ace: "Gin Obligatoire" (only Gin or Grand Gin wins possible)</p>
+            </div>
+            <div class="dialog-buttons">
+                <button id="closeRulesButton">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Menu Dialog -->
+    <div id="menuDialog" class="dialog-overlay" style="display: none;">
+        <div class="dialog">
+            <h2>Menu</h2>
+            <div class="dialog-content">
+                <button id="newGameMenuButton" style="width: 100%; margin-bottom: 10px;">New Game</button>
+                <button id="rulesMenuButton" style="width: 100%; margin-bottom: 10px;">Rules</button>
+            </div>
+            <div class="dialog-buttons">
+                <button id="closeMenuButton">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game End Dialog -->
+    <div id="gameEndDialog" class="dialog-overlay" style="display: none;">
+        <div class="dialog">
+            <h2 id="gameEndTitle">Hand Complete</h2>
+            <div class="dialog-content" id="gameEndContent">
+                <!-- Content will be dynamically inserted -->
+            </div>
+            <div class="dialog-buttons">
+                <button id="nextHandButton">Next Hand</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Go Down Dialog -->
+    <div id="goDownDialog" class="dialog-overlay" style="display: none;">
+        <div class="dialog">
+            <h2>Go Down</h2>
+            <div class="dialog-content">
+                <p>Select the cards you want to discard:</p>
+                <div id="goDownCards" class="sets-selector" style="margin-top: 15px;"></div>
+                <p style="margin-top: 15px;">Total unmatched value: <span id="unmatchedValue">0</span></p>
+                <p>Descent card value: <span id="descentCardValue">0</span></p>
+            </div>
+            <div class="dialog-buttons">
+                <button id="confirmGoDownButton" disabled>Confirm Go Down</button>
+                <button id="cancelGoDownButton">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Card class to represent individual cards
+        class Card {
+            constructor(suit, rank) {
+                this.suit = suit;
+                this.rank = rank;
+                this.id = `${rank}${suit}`;
+                this.faceUp = false;
+                this.selected = false;
+                this.inSet = false;
+            }
+
+            // Get the display value of the card
+            get displayRank() {
+                if (this.rank === '1') return 'A';
+                if (this.rank === '11') return 'J';
+                if (this.rank === '12') return 'Q';
+                if (this.rank === '13') return 'K';
+                return this.rank;
+            }
+
+            // Get the suit symbol
+            get suitSymbol() {
+                if (this.suit === 'S') return '♠';
+                if (this.suit === 'H') return '♥';
+                if (this.suit === 'D') return '♦';
+                if (this.suit === 'C') return '♣';
+                return this.suit;
+            }
+
+            // Get the color based on suit
+            get color() {
+                return (this.suit === 'H' || this.suit === 'D') ? 'red' : 'black';
+            }
+
+            // Get the numeric value for scoring
+            get value() {
+                if (this.rank === '1') return 15; // Ace
+                if (this.rank === '11' || this.rank === '12' || this.rank === '13') return 10; // Face cards
+                return parseInt(this.rank); // Number cards
+            }
+
+            // Get the numeric rank for sorting and run detection
+            get numericRank() {
+                return parseInt(this.rank);
+            }
+
+            // Create a card element for display
+            createCardElement() {
+                const cardElement = document.createElement('div');
+                cardElement.className = `card ${this.suitClass}`;
+                cardElement.dataset.id = this.id;
+                
+                if (!this.faceUp) {
+                    cardElement.classList.add('facedown');
+                    return cardElement;
+                }
+                
+                // Add selection state
+                if (this.selected) {
+                    cardElement.classList.add('selected');
+                }
+
+                // Add suit class for styling
+                if (this.suit === 'H') cardElement.classList.add('hearts');
+                if (this.suit === 'D') cardElement.classList.add('diamonds');
+                if (this.suit === 'C') cardElement.classList.add('clubs');
+                if (this.suit === 'S') cardElement.classList.add('spades');
+
+                // Create card structure
+                const cardTop = document.createElement('div');
+                cardTop.className = 'card-top';
+                cardTop.textContent = `${this.displayRank}${this.suitSymbol}`;
+                
+                const cardCenter = document.createElement('div');
+                cardCenter.className = 'card-center';
+                cardCenter.textContent = this.suitSymbol;
+                
+                const cardBottom = document.createElement('div');
+                cardBottom.className = 'card-bottom';
+                cardBottom.textContent = `${this.displayRank}${this.suitSymbol}`;
+                
+                cardElement.appendChild(cardTop);
+                cardElement.appendChild(cardCenter);
+                cardElement.appendChild(cardBottom);
+                
+                return cardElement;
+            }
+
+            // Create a simple card for sets display
+            createSimpleCardElement() {
+                const cardElement = document.createElement('div');
+                cardElement.className = `card ${this.suitClass} no-select`;
+                cardElement.dataset.id = this.id;
+                cardElement.style.transform = 'none';
+                cardElement.style.cursor = 'default';
+                
+                // Add suit class for styling
+                if (this.suit === 'H') cardElement.classList.add('hearts');
+                if (this.suit === 'D') cardElement.classList.add('diamonds');
+                if (this.suit === 'C') cardElement.classList.add('clubs');
+                if (this.suit === 'S') cardElement.classList.add('spades');
+
+                // Create card structure
+                const cardTop = document.createElement('div');
+                cardTop.className = 'card-top';
+                cardTop.textContent = `${this.displayRank}${this.suitSymbol}`;
+                
+                const cardCenter = document.createElement('div');
+                cardCenter.className = 'card-center';
+                cardCenter.textContent = this.suitSymbol;
+                
+                const cardBottom = document.createElement('div');
+                cardBottom.className = 'card-bottom';
+                cardBottom.textContent = `${this.displayRank}${this.suitSymbol}`;
+                
+                cardElement.appendChild(cardTop);
+                cardElement.appendChild(cardCenter);
+                cardElement.appendChild(cardBottom);
+                
+                return cardElement;
+            }
+        }
+
+        // Deck class to manage card collections
+        class Deck {
+            constructor() {
+                this.cards = [];
+                this.initializeDeck();
+                this.shuffle();
+            }
+
+            // Create a standard 52-card deck
+            initializeDeck() {
+                const suits = ['H', 'D', 'C', 'S'];
+                const ranks = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13'];
+                
+                for (const suit of suits) {
+                    for (const rank of ranks) {
+                        this.cards.push(new Card(suit, rank));
+                    }
+                }
+            }
+
+            // Fisher-Yates shuffle algorithm
+            shuffle() {
+                for (let i = this.cards.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
+                }
+            }
+
+            // Draw a card from the deck
+            drawCard() {
+                if (this.cards.length === 0) return null;
+                return this.cards.pop();
+            }
+
+            // Get the number of remaining cards
+            get remainingCards() {
+                return this.cards.length;
+            }
+        }
+
+        // Set class to manage card sets
+        class CardSet {
+            constructor(cards = []) {
+                this.cards = cards;
+                this.type = this.determineSetType();
+            }
+
+            // Add a card to the set
+            addCard(card) {
+                this.cards.push(card);
+                this.type = this.determineSetType();
+            }
+
+            // Remove a card from the set
+            removeCard(cardId) {
+                this.cards = this.cards.filter(card => card.id !== cardId);
+                this.type = this.determineSetType();
+            }
+
+            // Determine if this is a valid set
+            isValid() {
+                return this.type !== 'invalid';
+            }
+
+            // Get the combined value of all cards in the set
+            getTotalValue() {
+                return this.cards.reduce((sum, card) => sum + card.value, 0);
+            }
+
+            // Create a DOM element representing this set
+            createSetElement() {
+                const setElement = document.createElement('div');
+                setElement.className = 'set';
+                
+                // Add a class if this is a valid set
+                if (this.isValid()) {
+                    setElement.classList.add('valid-set');
+                }
+                
+                // Add all cards to the set element
+                for (const card of this.cards) {
+                    const cardElement = card.createSimpleCardElement();
+                    setElement.appendChild(cardElement);
+                }
+                
+                return setElement;
+            }
+
+            // Determine if this is a matching set or a run
+            determineSetType() {
+                if (this.cards.length < 3) return 'invalid';
+                
+                // Check if it's a matching set (same rank)
+                const isMatchingSet = this.isMatchingSet();
+                
+                // Check if it's a run (consecutive cards of same suit)
+                const isRun = this.isRun();
+                
+                if (isMatchingSet) return 'matching';
+                if (isRun) return 'run';
+                return 'invalid';
+            }
+
+            // Check if all cards have the same rank
+            isMatchingSet() {
+                if (this.cards.length < 3) return false;
+                
+                const firstRank = this.cards[0].rank;
+                return this.cards.every(card => card.rank === firstRank);
+            }
+
+            // Check if the cards form a consecutive sequence of the same suit
+            isRun() {
+                if (this.cards.length < 3) return false;
+                
+                // All cards must be of the same suit
+                const firstSuit = this.cards[0].suit;
+                if (!this.cards.every(card => card.suit === firstSuit)) return false;
+                
+                // Sort cards by rank (handling Aces specially)
+                const sortedCards = [...this.cards].sort((a, b) => {
+                    // Special case for Ace
+                    if (a.rank === '1' && b.rank === '1') return 0;
+                    if (a.rank === '1') return -1;
+                    if (b.rank === '1') return 1;
+                    
+                    return a.numericRank - b.numericRank;
+                });
+                
+                // Check if they form a consecutive sequence
+                for (let i = 0; i < sortedCards.length - 1; i++) {
+                    const currentCard = sortedCards[i];
+                    const nextCard = sortedCards[i + 1];
+                    
+                    // Handle the special case for Ace (1) and King (13)
+                    if (currentCard.rank === '1' && nextCard.rank === '13') {
+                        return false; // Ace and King are not consecutive
+                    }
+                    
+                    // Handle Ace low (A, 2, 3)
+                    if (currentCard.rank === '1' && nextCard.rank === '2') {
+                        continue;
+                    }
+                    
+                    // Handle Ace high (K, A)
+                    if (currentCard.rank === '13' && nextCard.rank === '1') {
+                        continue;
+                    }
+                    
+                    // Normal case: check if cards are consecutive
+                    if (currentCard.numericRank + 1 !== nextCard.numericRank) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            }
+        }
+
+        // Player class
+        class Player {
+            constructor(isAI = false) {
+                this.hand = [];
+                this.sets = [];
+                this.isAI = isAI;
+                this.score = 0;
+                this.cocottes = 0;
+            }
+
+            // Add a card to the player's hand
+            addCard(card) {
+                this.hand.push(card);
+            }
+
+            // Remove a card from the player's hand
+            removeCard(cardId) {
+                const index = this.hand.findIndex(card => card.id === cardId);
+                if (index !== -1) {
+                    const removedCard = this.hand.splice(index, 1)[0];
+                    return removedCard;
+                }
+                return null;
+            }
+
+            // Get the total value of unmatched cards
+            getUnmatchedCardsValue() {
+                // Get all cards that are in sets
+                const cardsInSets = this.sets.flatMap(set => set.cards);
+                const cardsInSetsIds = cardsInSets.map(card => card.id);
+                
+                // Find unmatched cards
+                const unmatchedCards = this.hand.filter(card => !cardsInSetsIds.includes(card.id));
+                
+                // Calculate total value
+                return unmatchedCards.reduce((sum, card) => sum + card.value, 0);
+            }
+
+            // Get the unmatched cards
+            getUnmatchedCards() {
+                // Get all cards that are in sets
+                const cardsInSets = this.sets.flatMap(set => set.cards);
+                const cardsInSetsIds = cardsInSets.map(card => card.id);
+                
+                // Find unmatched cards
+                return this.hand.filter(card => !cardsInSetsIds.includes(card.id));
+            }
+
+            // Check if player has a valid Gin
+            hasGin() {
+                const unmatchedCards = this.getUnmatchedCards();
+                return unmatchedCards.length === 1 && this.sets.every(set => set.isValid());
+            }
+
+            // Check if player has a valid Grand Gin
+            hasGrandGin() {
+                const unmatchedCards = this.getUnmatchedCards();
+                return unmatchedCards.length === 0 && this.sets.every(set => set.isValid());
+            }
+
+            // Check if player can Go Down
+            canGoDown(descentValue) {
+                const unmatchedCards = this.getUnmatchedCards();
+                
+                // No unmatched cards? Then it's Grand Gin, not Go Down
+                if (unmatchedCards.length === 0) return false;
+                
+                // One unmatched card? Then it's Gin, not Go Down
+                if (unmatchedCards.length === 1) return false;
+                
+                // Check if unmatched cards meet the descent value criteria
+                if (descentValue === 'A') return false; // Can't Go Down during Gin Obligatoire
+                
+                // Get numeric value of descent card
+                const numericDescentValue = descentValue === 'A' ? 15 :
+                                           ['J', 'Q', 'K'].includes(descentValue) ? 10 :
+                                           parseInt(descentValue);
+                
+                // If at least one combination of unmatched cards has value <= descent value
+                return this.canFormGoDownCombination(unmatchedCards, numericDescentValue);
+            }
+
+            // Helper to check if any combination of unmatched cards can form a valid Go Down
+            canFormGoDownCombination(cards, maxValue) {
+                // Base case: if any single card's value is <= maxValue
+                if (cards.some(card => card.value <= maxValue)) return true;
+                
+                // Try all combinations of multiple cards to see if any sum to <= maxValue
+                // Start with 2 cards, 3 cards, etc.
+                for (let size = 2; size < cards.length; size++) {
+                    if (this.hasCombinationSumLessEqual(cards, size, maxValue)) {
+                        return true;
+                    }
+                }
+                
+                return false;
+            }
+
+            // Check if any combination of 'size' cards from 'cards' sums to <= maxValue
+            hasCombinationSumLessEqual(cards, size, maxValue) {
+                // Helper function for combinations
+                const getCombinations = (arr, size) => {
+                    if (size === 1) return arr.map(e => [e]);
+                    return arr.flatMap((e, i) => 
+                        getCombinations(arr.slice(i + 1), size - 1).map(combo => [e, ...combo])
+                    );
+                };
+                
+                const combinations = getCombinations(cards, size);
+                
+                return combinations.some(combo => {
+                    const sum = combo.reduce((acc, card) => acc + card.value, 0);
+                    return sum <= maxValue;
+                });
+            }
+
+            // AI strategy for deciding which card to discard
+            aiChooseCardToDiscard() {
+                // Sort cards by value (highest first)
+                const sortedByValue = [...this.hand].sort((a, b) => b.value - a.value);
+                
+                // Prioritize discarding high-value cards not part of any potential set
+                for (const card of sortedByValue) {
+                    if (!this.isPartOfPotentialSet(card)) {
+                        return card;
+                    }
+                }
+                
+                // If all cards are part of potential sets, discard the highest value card
+                return sortedByValue[0];
+            }
+
+            // Check if a card could be part of a potential set
+            isPartOfPotentialSet(targetCard) {
+                const sameSuit = this.hand.filter(card => 
+                    card.id !== targetCard.id && card.suit === targetCard.suit
+                );
+                
+                const sameRank = this.hand.filter(card => 
+                    card.id !== targetCard.id && card.rank === targetCard.rank
+                );
+                
+                // Check for potential matching set (need at least 2 cards of same rank)
+                if (sameRank.length >= 2) return true;
+                
+                // Check for potential runs in same suit
+                const targetRank = parseInt(targetCard.rank);
+                const adjacentRanks = sameSuit.filter(card => {
+                    const cardRank = parseInt(card.rank);
+                    return Math.abs(cardRank - targetRank) <= 2;
+                });
+                
+                if (adjacentRanks.length >= 2) return true;
+                
+                return false;
+            }
+
+            // AI strategy to choose which pile to draw from
+            aiChooseDrawPile(discardCard) {
+                // If the discard pile is empty, draw from stock
+                if (!discardCard) return 'stock';
+                
+                // Check if the discard card could be useful
+                if (this.isCardUseful(discardCard)) {
+                    return 'discard';
+                }
+                
+                return 'stock';
+            }
+
+            // Determine if a card would be useful for the AI's hand
+            isCardUseful(targetCard) {
+                // Check if the card would complete or extend a set
+                const sameRank = this.hand.filter(card => card.rank === targetCard.rank);
+                
+                // If we already have 2 or more of the same rank, it's useful for a matching set
+                if (sameRank.length >= 2) return true;
+                
+                // Check for potential runs
+                const sameSuit = this.hand.filter(card => card.suit === targetCard.suit);
+                
+                // If we have adjacent ranks in the same suit
+                for (const card of sameSuit) {
+                    const cardRank = parseInt(card.rank);
+                    const targetRank = parseInt(targetCard.rank);
+                    
+                    if (Math.abs(cardRank - targetRank) === 1) {
+                        // Check if the other adjacent rank is also in hand
+                        const otherAdjacentRank = targetRank + (targetRank - cardRank);
+                        
+                        if (sameSuit.some(c => parseInt(c.rank) === otherAdjacentRank)) {
+                            return true;
+                        }
+                    }
+                }
+                
+                // If the card is an Ace, give it special consideration
+                if (targetCard.rank === '1') {
+                    // Check if we have King or 2 of the same suit
+                    if (sameSuit.some(c => c.rank === '13' || c.rank === '2')) {
+                        return true;
+                    }
+                }
+                
+                return false;
+            }
+
+            // AI strategy for finding sets
+            aiFormSets() {
+                this.sets = [];
+                
+                // First, find all possible matching sets (3+ cards of same rank)
+                const rankGroups = {};
+                
+                for (const card of this.hand) {
+                    if (!rankGroups[card.rank]) {
+                        rankGroups[card.rank] = [];
+                    }
+                    rankGroups[card.rank].push(card);
+                }
+                
+                // Form matching sets with 3+ cards
+                for (const rank in rankGroups) {
+                    if (rankGroups[rank].length >= 3) {
+                        this.sets.push(new CardSet(rankGroups[rank]));
+                    }
+                }
+                
+                // Now, find all possible runs (consecutive cards of same suit)
+                const suitGroups = {};
+                
+                // Group cards by suit
+                for (const card of this.hand) {
+                    if (!this.isCardInSet(card)) {  // Skip cards already in sets
+                        if (!suitGroups[card.suit]) {
+                            suitGroups[card.suit] = [];
+                        }
+                        suitGroups[card.suit].push(card);
+                    }
+                }
+                
+                // For each suit, find runs
+                for (const suit in suitGroups) {
+                    if (suitGroups[suit].length >= 3) {
+                        const potentialRuns = this.findRuns(suitGroups[suit]);
+                        
+                        for (const run of potentialRuns) {
+                            if (run.length >= 3) {
+                                this.sets.push(new CardSet(run));
+                            }
+                        }
+                    }
+                }
+                
+                return this.sets;
+            }
+
+            // Check if a card is already included in a set
+            isCardInSet(targetCard) {
+                return this.sets.some(set => 
+                    set.cards.some(card => card.id === targetCard.id)
+                );
+            }
+
+            // Find all possible runs in a group of cards of the same suit
+            findRuns(cards) {
+                if (cards.length < 3) return [];
+                
+                // Sort cards by rank
+                const sortedCards = [...cards].sort((a, b) => a.numericRank - b.numericRank);
+                
+                const runs = [];
+                let currentRun = [sortedCards[0]];
+                
+                // Find consecutive sequences
+                for (let i = 1; i < sortedCards.length; i++) {
+                    const prevCard = sortedCards[i - 1];
+                    const currentCard = sortedCards[i];
+                    
+                    // Check if cards are consecutive
+                    if (currentCard.numericRank === prevCard.numericRank + 1) {
+                        currentRun.push(currentCard);
+                    } else {
+                        if (currentRun.length >= 3) {
+                            runs.push([...currentRun]);
+                        }
+                        currentRun = [currentCard];
+                    }
+                }
+                
+                // Don't forget the last run
+                if (currentRun.length >= 3) {
+                    runs.push(currentRun);
+                }
+                
+                // Special case: Ace can be low or high
+                // Check for runs with Ace as low (A,2,3)
+                const aceCards = cards.filter(card => card.rank === '1');
+                const twoCards = cards.filter(card => card.rank === '2');
+                const threeCards = cards.filter(card => card.rank === '3');
+                
+                if (aceCards.length > 0 && twoCards.length > 0 && threeCards.length > 0) {
+                    runs.push([aceCards[0], twoCards[0], threeCards[0]]);
+                }
+                
+                // Check for runs with Ace as high (Q,K,A)
+                const queenCards = cards.filter(card => card.rank === '12');
+                const kingCards = cards.filter(card => card.rank === '13');
+                
+                if (aceCards.length > 0 && kingCards.length > 0 && queenCards.length > 0) {
+                    runs.push([queenCards[0], kingCards[0], aceCards[0]]);
+                }
+                
+                return runs;
+            }
+        }
+
+        // Game class to manage the overall game state
+        class MandelGinGame {
+            constructor() {
+                this.player = new Player(false);
+                this.opponent = new Player(true);
+                this.mainDeck = null;
+                this.descentDeck = null;
+                this.discardPile = [];
+                this.currentPlayer = null;
+                this.isGameOver = false;
+                this.isHandOver = false;
+                this.isPlayerTurn = false;
+                this.descentCard = null;
+                this.isDoubleScoring = false;
+                this.isGinObligatoire = false;
+                this.selectedCards = [];
+                this.playerDrew = false;
+                
+                // UI elements
+                this.playerHandElement = document.getElementById('playerHand');
+                this.opponentHandElement = document.getElementById('opponentHand');
+                this.deckElement = document.getElementById('deck');
+                this.deckCountElement = document.getElementById('deckCount');
+                this.discardElement = document.getElementById('discard');
+                this.discardCountElement = document.getElementById('discardCount');
+                this.descentCardElement = document.getElementById('descentCard');
+                this.descentValueElement = document.getElementById('descentValue');
+                this.gameStatusElement = document.getElementById('gameStatus');
+                this.playerPointsElement = document.getElementById('playerPoints');
+                this.playerCocottesElement = document.getElementById('playerCocottes');
+                this.opponentPointsElement = document.getElementById('opponentPoints');
+                this.opponentCocottesElement = document.getElementById('opponentCocottes');
+                this.actionButtonsElement = document.getElementById('actionButtons');
+                this.goDownButtonElement = document.getElementById('goDownButton');
+                this.ginButtonElement = document.getElementById('ginButton');
+                this.grandGinButtonElement = document.getElementById('grandGinButton');
+                this.setsManagerElement = document.getElementById('setsManager');
+                this.availableCardsElement = document.getElementById('availableCards');
+                this.currentSetsElement = document.getElementById('currentSets');
+                this.createSetButtonElement = document.getElementById('createSetButton');
+                this.clearSetButtonElement = document.getElementById('clearSetButton');
+                this.playerSetsElement = document.getElementById('playerSets');
+                this.opponentSetsElement = document.getElementById('opponentSets');
+                this.playerUnmatchedElement = document.getElementById('playerUnmatched');
+                
+                // Event listeners
+                document.getElementById('newGameButton').addEventListener('click', () => this.setupNewGame());
+                document.getElementById('newGameMenuButton').addEventListener('click', () => {
+                    document.getElementById('menuDialog').style.display = 'none';
+                    this.setupNewGame();
+                });
+                
+                this.deckElement.addEventListener('click', () => this.onDeckClick());
+                this.discardElement.addEventListener('click', () => this.onDiscardClick());
+                
+                this.goDownButtonElement.addEventListener('click', () => this.onGoDownClick());
+                this.ginButtonElement.addEventListener('click', () => this.onGinClick());
+                this.grandGinButtonElement.addEventListener('click', () => this.onGrandGinClick());
+                
+                this.createSetButtonElement.addEventListener('click', () => this.onCreateSetClick());
+                this.clearSetButtonElement.addEventListener('click', () => this.clearSelectedCards());
+                
+                document.getElementById('confirmGoDownButton').addEventListener('click', () => this.confirmGoDown());
+                document.getElementById('cancelGoDownButton').addEventListener('click', () => {
+                    document.getElementById('goDownDialog').style.display = 'none';
+                });
+                
+                document.getElementById('rulesButton').addEventListener('click', () => {
+                    document.getElementById('rulesDialog').style.display = 'flex';
+                });
+                
+                document.getElementById('closeRulesButton').addEventListener('click', () => {
+                    document.getElementById('rulesDialog').style.display = 'none';
+                });
+                
+                document.getElementById('menuButton').addEventListener('click', () => {
+                    document.getElementById('menuDialog').style.display = 'flex';
+                });
+                
+                document.getElementById('closeMenuButton').addEventListener('click', () => {
+                    document.getElementById('menuDialog').style.display = 'none';
+                });
+                
+                document.getElementById('rulesMenuButton').addEventListener('click', () => {
+                    document.getElementById('menuDialog').style.display = 'none';
+                    document.getElementById('rulesDialog').style.display = 'flex';
+                });
+                
+                document.getElementById('nextHandButton').addEventListener('click', () => {
+                    document.getElementById('gameEndDialog').style.display = 'none';
+                    this.setupNewHand();
+                });
+                
+                // Setup initial game
+                this.setupNewGame();
+            }
+
+            // Initialize a new game
+            setupNewGame() {
+                this.player.score = 0;
+                this.player.cocottes = 0;
+                this.opponent.score = 0;
+                this.opponent.cocottes = 0;
+                this.updateScoreDisplay();
+                this.setupNewHand();
+            }
+
+            // Initialize a new hand
+            setupNewHand() {
+                // Reset game state
+                this.player.hand = [];
+                this.player.sets = [];
+                this.opponent.hand = [];
+                this.opponent.sets = [];
+                this.discardPile = [];
+                this.isGameOver = false;
+                this.isHandOver = false;
+                this.playerDrew = false;
+                this.selectedCards = [];
+                
+                // Clear UI elements
+                this.playerHandElement.innerHTML = '';
+                this.opponentHandElement.innerHTML = '';
+                this.playerSetsElement.innerHTML = '';
+                this.opponentSetsElement.innerHTML = '';
+                this.playerUnmatchedElement.innerHTML = '';
+                this.playerSetsElement.style.display = 'none';
+                this.opponentSetsElement.style.display = 'none';
+                this.playerUnmatchedElement.style.display = 'none';
+                this.setsManagerElement.style.display = 'none';
+                this.actionButtonsElement.style.display = 'none';
+                
+                // Initialize decks
+                this.mainDeck = new Deck();
+                this.descentDeck = new Deck();
+                
+                // Deal the Descent card
+                this.descentCard = this.descentDeck.drawCard();
+                this.descentCard.faceUp = true;
+                
+                // Determine scoring rules based on the Descent card
+                this.isDoubleScoring = this.descentCard.suit === 'H' || this.descentCard.suit === 'S';
+                this.isGinObligatoire = this.descentCard.rank === '1'; // Ace
+                
+                // Display the Descent card
+                this.descentCardElement.innerHTML = '';
+                this.descentCardElement.appendChild(this.descentCard.createCardElement());
+                
+                // Update Descent value display
+                this.descentValueElement.textContent = `${this.descentCard.displayRank} (${this.isDoubleScoring ? 'Double' : 'Single'} Scoring${this.isGinObligatoire ? ', Gin Obligatoire' : ''})`;
+                
+                // Determine first player randomly for the first hand
+                this.isPlayerTurn = Math.random() < 0.5;
+                
+                // Deal cards
+                this.dealInitialCards();
+                
+                // Update UI
+                this.updateDeckCount();
+                this.updateDiscardPile();
+                this.updateHandsDisplay();
+                this.updateGameStatus();
+                
+                // Start game
+                if (!this.isPlayerTurn) {
+                    setTimeout(() => this.playOpponentTurn(), 1000);
+                }
+            }
+
+            // Deal initial cards to both players
+            dealInitialCards() {
+                // Deal 10 cards to the first player
+                const firstPlayer = this.isPlayerTurn ? this.player : this.opponent;
+                for (let i = 0; i < 10; i++) {
+                    const card = this.mainDeck.drawCard();
+                    if (!card) break;
+                    
+                    if (firstPlayer === this.player) {
+                        card.faceUp = true;
+                this.player.addCard(card);
+                this.playerDrew = true;
+                this.updateHandsDisplay();
+                this.updateDeckCount();
+                
+                // Enable action buttons if player has valid winning conditions
+                this.updateActionButtons();
+                
+                // Update game status
+                this.updateGameStatus();
+            }
+
+            // Handle clicking on the discard pile
+            onDiscardClick() {
+                if (this.isHandOver || !this.isPlayerTurn || this.playerDrew || this.discardPile.length === 0) return;
+                
+                const card = this.discardPile.pop();
+                this.player.addCard(card);
+                this.playerDrew = true;
+                
+                this.updateHandsDisplay();
+                this.updateDiscardPile();
+                
+                // Enable action buttons if player has valid winning conditions
+                this.updateActionButtons();
+                
+                // Update game status
+                this.updateGameStatus();
+            }
+
+            // Handle clicking on a card in the player's hand
+            onPlayerCardClick(cardId) {
+                if (!this.isPlayerTurn || !this.playerDrew) return;
+                
+                // Get the card from the player's hand
+                const card = this.player.hand.find(c => c.id === cardId);
+                if (!card) return;
+                
+                // Remove the card from the player's hand
+                this.player.removeCard(cardId);
+                
+                // Add the card to the discard pile
+                this.discardPile.push(card);
+                
+                // Reset player turn state
+                this.playerDrew = false;
+                this.isPlayerTurn = false;
+                
+                // Update UI
+                this.updateHandsDisplay();
+                this.updateDiscardPile();
+                this.updateGameStatus();
+                
+                // Hide action buttons
+                this.actionButtonsElement.style.display = 'none';
+                
+                // Check if the hand is over
+                if (this.isHandOver) return;
+                
+                // Give the opponent a turn
+                setTimeout(() => this.playOpponentTurn(), 1000);
+            }
+
+            // Enable or disable action buttons based on player's hand
+            updateActionButtons() {
+                this.actionButtonsElement.style.display = 'flex';
+                
+                // Check for Grand Gin (all cards in sets)
+                this.grandGinButtonElement.disabled = !this.player.hasGrandGin();
+                
+                // Check for Gin (10 cards in sets, 1 unmatched)
+                this.ginButtonElement.disabled = !this.player.hasGin();
+                
+                // Check for Go Down
+                const descentValue = this.descentCard.displayRank;
+                this.goDownButtonElement.disabled = !this.player.canGoDown(descentValue) || this.isGinObligatoire;
+            }
+
+            // Play the opponent's turn (AI)
+            playOpponentTurn() {
+                if (this.isHandOver) return;
+                
+                // Update game status
+                this.updateGameStatus("Opponent is thinking...");
+                
+                // Simulate AI thinking time
+                setTimeout(() => {
+                    // Step 1: AI decides whether to draw from deck or discard pile
+                    let drawnCard;
+                    let drewFromDiscard = false;
+                    
+                    if (this.discardPile.length > 0) {
+                        const topDiscard = this.discardPile[this.discardPile.length - 1];
+                        const drawChoice = this.opponent.aiChooseDrawPile(topDiscard);
+                        
+                        if (drawChoice === 'discard') {
+                            drawnCard = this.discardPile.pop();
+                            drewFromDiscard = true;
+                            this.updateDiscardPile();
+                        } else {
+                            drawnCard = this.mainDeck.drawCard();
+                            this.updateDeckCount();
+                        }
+                    } else {
+                        drawnCard = this.mainDeck.drawCard();
+                        this.updateDeckCount();
+                    }
+                    
+                    if (!drawnCard) {
+                        // If deck is empty, reshuffle discard pile (excluding top card)
+                        if (this.discardPile.length > 1) {
+                            const topCard = this.discardPile.pop();
+                            this.mainDeck.cards = [...this.discardPile];
+                            this.discardPile = [topCard];
+                            this.mainDeck.shuffle();
+                            this.updateDeckCount();
+                            this.updateDiscardPile();
+                            
+                            // Try drawing again
+                            drawnCard = this.mainDeck.drawCard();
+                            this.updateDeckCount();
+                        } else {
+                            this.updateGameStatus("No more cards in the deck!");
+                            return;
+                        }
+                    }
+                    
+                    // Add the drawn card to opponent's hand
+                    drawnCard.faceUp = false; // Keep opponent's cards hidden
+                    this.opponent.addCard(drawnCard);
+                    
+                    // Step 2: AI forms sets
+                    this.opponent.aiFormSets();
+                    
+                    // Step 3: Check for winning conditions
+                    const descentValue = this.descentCard.displayRank;
+                    
+                    if (this.opponent.hasGrandGin()) {
+                        // Opponent declares Grand Gin
+                        this.handleOpponentGrandGin();
+                        return;
+                    } else if (this.opponent.hasGin()) {
+                        // Opponent declares Gin
+                        const unmatchedCard = this.opponent.getUnmatchedCards()[0];
+                        this.opponent.removeCard(unmatchedCard.id);
+                        unmatchedCard.faceUp = true;
+                        this.discardPile.push(unmatchedCard);
+                        
+                        this.handleOpponentGin();
+                        return;
+                    } else if (this.opponent.canGoDown(descentValue) && !this.isGinObligatoire) {
+                        // Opponent Goes Down
+                        const unmatchedCards = this.opponent.getUnmatchedCards();
+                        
+                        // Find a combination that satisfies the Go Down condition
+                        const validGoDownCombo = this.findValidGoDownCombination(unmatchedCards, this.getDescentValue());
+                        
+                        if (validGoDownCombo) {
+                            // Discard one card
+                            const remainingCards = unmatchedCards.filter(card => 
+                                !validGoDownCombo.includes(card)
+                            );
+                            
+                            if (remainingCards.length > 0) {
+                                const cardToDiscard = remainingCards[0];
+                                this.opponent.removeCard(cardToDiscard.id);
+                                cardToDiscard.faceUp = true;
+                                this.discardPile.push(cardToDiscard);
+                                
+                                // Go Down with the valid combo
+                                for (const card of validGoDownCombo) {
+                                    this.opponent.removeCard(card.id);
+                                    card.faceUp = true;
+                                    this.discardPile.push(card);
+                                }
+                                
+                                this.handleOpponentGoDown(validGoDownCombo);
+                                return;
+                            }
+                        }
+                    }
+                    
+                    // Step 4: If no winning condition, discard a card
+                    const cardToDiscard = this.opponent.aiChooseCardToDiscard();
+                    this.opponent.removeCard(cardToDiscard.id);
+                    cardToDiscard.faceUp = true;
+                    this.discardPile.push(cardToDiscard);
+                    
+                    // Update UI
+                    this.updateHandsDisplay();
+                    this.updateDiscardPile();
+                    
+                    // Hand over turn to player
+                    this.isPlayerTurn = true;
+                    this.updateGameStatus();
+                }, 1500);
+            }
+
+            // Find a valid Go Down combination for the AI
+            findValidGoDownCombination(cards, maxValue) {
+                // Try combinations starting from smaller sizes
+                for (let size = 1; size < cards.length; size++) {
+                    const combinations = this.getCombinations(cards, size);
+                    
+                    for (const combo of combinations) {
+                        const totalValue = combo.reduce((sum, card) => sum + card.value, 0);
+                        if (totalValue <= maxValue) {
+                            return combo;
+                        }
+                    }
+                }
+                
+                return null;
+            }
+
+            // Helper function to generate combinations
+            getCombinations(array, size) {
+                function* doCombination(offset, combo) {
+                    if (combo.length === size) {
+                        yield combo;
+                        return;
+                    }
+                    
+                    for (let i = offset; i < array.length; i++) {
+                        yield* doCombination(i + 1, [...combo, array[i]]);
+                    }
+                }
+                
+                return [...doCombination(0, [])];
+            }
+
+            // Get the numeric value of the descent card
+            getDescentValue() {
+                const rank = this.descentCard.displayRank;
+                
+                if (rank === 'A') return 15;
+                if (['J', 'Q', 'K'].includes(rank)) return 10;
+                return parseInt(rank);
+            }
+
+            // Handle player declaring Gin
+            onGinClick() {
+                if (!this.isPlayerTurn || !this.playerDrew || !this.player.hasGin()) return;
+                
+                // Open sets manager for organizing sets
+                this.openSetsManager("Organize your sets for Gin");
+            }
+
+            // Handle player declaring Grand Gin
+            onGrandGinClick() {
+                if (!this.isPlayerTurn || !this.playerDrew || !this.player.hasGrandGin()) return;
+                
+                // Open sets manager for organizing sets
+                this.openSetsManager("Organize your sets for Grand Gin");
+            }
+
+            // Handle player attempting to Go Down
+            onGoDownClick() {
+                if (!this.isPlayerTurn || !this.playerDrew || this.isGinObligatoire) return;
+                
+                // Open the Go Down dialog
+                const goDownDialog = document.getElementById('goDownDialog');
+                const goDownCardsContainer = document.getElementById('goDownCards');
+                const unmatchedValueElement = document.getElementById('unmatchedValue');
+                const descentCardValueElement = document.getElementById('descentCardValue');
+                const confirmGoDownButton = document.getElementById('confirmGoDownButton');
+                
+                // Get unmatched cards
+                const unmatchedCards = this.player.getUnmatchedCards();
+                
+                // Clear previous content
+                goDownCardsContainer.innerHTML = '';
+                
+                // Add unmatched cards to the dialog
+                for (const card of unmatchedCards) {
+                    const cardElement = card.createCardElement();
+                    cardElement.classList.add('selectable');
+                    
+                    cardElement.addEventListener('click', () => {
+                        cardElement.classList.toggle('selected');
+                        
+                        // Calculate total value of selected cards
+                        const selectedCards = goDownCardsContainer.querySelectorAll('.selected');
+                        const totalValue = Array.from(selectedCards).reduce((sum, el) => {
+                            const cardId = el.dataset.id;
+                            const card = unmatchedCards.find(c => c.id === cardId);
+                            return sum + card.value;
+                        }, 0);
+                        
+                        unmatchedValueElement.textContent = totalValue;
+                        
+                        // Enable/disable confirm button
+                        confirmGoDownButton.disabled = totalValue > this.getDescentValue();
+                    });
+                    
+                    goDownCardsContainer.appendChild(cardElement);
+                }
+                
+                // Set descent card value
+                descentCardValueElement.textContent = this.getDescentValue();
+                unmatchedValueElement.textContent = '0';
+                
+                // Show the dialog
+                goDownDialog.style.display = 'flex';
+            }
+
+            // Handle confirming a Go Down action
+            confirmGoDown() {
+                const goDownCardsContainer = document.getElementById('goDownCards');
+                const selectedElements = goDownCardsContainer.querySelectorAll('.selected');
+                
+                if (selectedElements.length === 0) {
+                    alert("Please select at least one card to Go Down with.");
+                    return;
+                }
+                
+                // Get the selected cards
+                const selectedCardIds = Array.from(selectedElements).map(el => el.dataset.id);
+                const unmatchedCards = this.player.getUnmatchedCards();
+                const selectedCards = unmatchedCards.filter(card => selectedCardIds.includes(card.id));
+                
+                // Calculate total value
+                const totalValue = selectedCards.reduce((sum, card) => sum + card.value, 0);
+                
+                // Ensure the value is valid
+                if (totalValue > this.getDescentValue()) {
+                    alert("The total value of selected cards exceeds the Descent card value.");
+                    return;
+                }
+                
+                // Open sets manager for organizing sets
+                document.getElementById('goDownDialog').style.display = 'none';
+                this.openSetsManager("Organize your sets for Go Down", selectedCards);
+            }
+
+            // Open the sets manager interface
+            openSetsManager(title, selectedGoDownCards = null) {
+                this.setsManagerElement.style.display = 'flex';
+                this.gameStatusElement.textContent = title;
+                this.actionButtonsElement.style.display = 'none';
+                
+                // Store Go Down cards for later use
+                this.goDownCards = selectedGoDownCards;
+                
+                // Update available cards display
+                this.updateAvailableCardsDisplay();
+            }
+
+            // Update the display of available cards in the sets manager
+            updateAvailableCardsDisplay() {
+                this.availableCardsElement.innerHTML = '';
+                
+                // Clear current sets display
+                this.currentSetsElement.innerHTML = '';
+                
+                // Sort cards by suit and rank for better organization
+                const sortedHand = [...this.player.hand].sort((a, b) => {
+                    if (a.suit !== b.suit) {
+                        const suitOrder = { 'H': 0, 'D': 1, 'C': 2, 'S': 3 };
+                        return suitOrder[a.suit] - suitOrder[b.suit];
+                    }
+                    return a.numericRank - b.numericRank;
+                });
+                
+                // Add cards to the available cards display
+                for (const card of sortedHand) {
+                    const cardElement = card.createCardElement();
+                    
+                    // Add click handler for selecting cards
+                    cardElement.addEventListener('click', () => {
+                        this.toggleCardSelection(card.id);
+                        this.updateAvailableCardsDisplay();
+                    });
+                    
+                    // Add selection state
+                    if (this.selectedCards.includes(card.id)) {
+                        cardElement.classList.add('selected');
+                    }
+                    
+                    this.availableCardsElement.appendChild(cardElement);
+                }
+                
+                // Display current sets
+                for (const [index, set] of this.player.sets.entries()) {
+                    const setElement = set.createSetElement();
+                    
+                    // Add a button to remove the set
+                    const removeButton = document.createElement('button');
+                    removeButton.textContent = 'X';
+                    removeButton.style.marginLeft = '5px';
+                    removeButton.addEventListener('click', () => {
+                        this.player.sets.splice(index, 1);
+                        this.updateAvailableCardsDisplay();
+                    });
+                    
+                    setElement.appendChild(removeButton);
+                    this.currentSetsElement.appendChild(setElement);
+                }
+            }
+
+            // Toggle selection of a card
+            toggleCardSelection(cardId) {
+                const index = this.selectedCards.indexOf(cardId);
+                
+                if (index === -1) {
+                    this.selectedCards.push(cardId);
+                } else {
+                    this.selectedCards.splice(index, 1);
+                }
+            }
+
+            // Clear all selected cards
+            clearSelectedCards() {
+                this.selectedCards = [];
+                this.updateAvailableCardsDisplay();
+            }
+
+            // Create a set from the selected cards
+            onCreateSetClick() {
+                if (this.selectedCards.length < 3) {
+                    alert("You need at least 3 cards to create a valid set.");
+                    return;
+                }
+                
+                // Create a new set from the selected cards
+                const setCards = this.selectedCards.map(id => 
+                    this.player.hand.find(card => card.id === id)
+                ).filter(Boolean);
+                
+                const newSet = new CardSet(setCards);
+                
+                if (!newSet.isValid()) {
+                    alert("This is not a valid set. Sets must be either 3+ cards of the same rank or 3+ consecutive cards of the same suit.");
+                    return;
+                }
+                
+                // Add the set to the player's sets
+                this.player.sets.push(newSet);
+                
+                // Clear selection
+                this.selectedCards = [];
+                
+                // Update display
+                this.updateAvailableCardsDisplay();
+                
+                // Check if player has completed their sets organization
+                this.checkSetsOrganization();
+            }
+
+            // Check if the player has organized all their sets
+            checkSetsOrganization() {
+                const unmatchedCards = this.player.getUnmatchedCards();
+                
+                // For Grand Gin, all cards must be in sets
+                if (this.goDownCards === null && unmatchedCards.length === 0) {
+                    this.handlePlayerGrandGin();
+                    return;
+                }
+                
+                // For Gin, exactly one card must be unmatched
+                if (this.goDownCards === null && unmatchedCards.length === 1) {
+                    // Get the unmatched card
+                    const unmatchedCard = unmatchedCards[0];
+                    
+                    // Add buttons to confirm Gin
+                    const confirmGinDiv = document.createElement('div');
+                    confirmGinDiv.className = 'action-buttons';
+                    confirmGinDiv.style.marginTop = '15px';
+                    
+                    const confirmGinText = document.createElement('p');
+                    confirmGinText.textContent = `Discard ${unmatchedCard.displayRank}${unmatchedCard.suitSymbol} to declare Gin?`;
+                    
+                    const confirmGinButton = document.createElement('button');
+                    confirmGinButton.textContent = 'Confirm Gin';
+                    confirmGinButton.addEventListener('click', () => {
+                        // Remove the unmatched card from hand
+                        this.player.removeCard(unmatchedCard.id);
+                        
+                        // Add it to discard pile
+                        unmatchedCard.faceUp = true;
+                        this.discardPile.push(unmatchedCard);
+                        
+                        this.handlePlayerGin();
+                    });
+                    
+                    const cancelGinButton = document.createElement('button');
+                    cancelGinButton.textContent = 'Cancel';
+                    cancelGinButton.addEventListener('click', () => {
+                        this.clearGinConfirmation();
+                    });
+                    
+                    confirmGinDiv.appendChild(confirmGinText);
+                    confirmGinDiv.appendChild(confirmGinButton);
+                    confirmGinDiv.appendChild(cancelGinButton);
+                    
+                    // Clear any existing confirmation
+                    this.clearGinConfirmation();
+                    
+                    // Add to the display
+                    this.currentSetsElement.appendChild(confirmGinDiv);
+                }
+                
+                // For Go Down, check if there are enough valid sets
+                if (this.goDownCards !== null) {
+                    // All remaining unmatched cards should match the Go Down cards
+                    const remainingUnmatched = unmatchedCards.filter(card => 
+                        !this.goDownCards.some(goDownCard => goDownCard.id === card.id)
+                    );
+                    
+                    // If there's one more unmatched card than the Go Down cards, it's for discard
+                    if (remainingUnmatched.length === this.goDownCards.length + 1) {
+                        // Add buttons to confirm Go Down
+                        const confirmGoDownDiv = document.createElement('div');
+                        confirmGoDownDiv.className = 'action-buttons';
+                        confirmGoDownDiv.style.marginTop = '15px';
+                        
+                        const confirmGoDownText = document.createElement('p');
+                        confirmGoDownText.textContent = `Select one card to discard:`;
+                        
+                        confirmGoDownDiv.appendChild(confirmGoDownText);
+                        
+                        // Add each card as a button option
+                        for (const card of remainingUnmatched) {
+                            const cardButton = document.createElement('button');
+                            cardButton.textContent = `${card.displayRank}${card.suitSymbol}`;
+                            cardButton.addEventListener('click', () => {
+                                // Remove the card from hand for discard
+                                this.player.removeCard(card.id);
+                                card.faceUp = true;
+                                this.discardPile.push(card);
+                                
+                                // Handle Go Down with the selected Go Down cards
+                                this.handlePlayerGoDown(this.goDownCards);
+                            });
+                            
+                            confirmGoDownDiv.appendChild(cardButton);
+                        }
+                        
+                        const cancelGoDownButton = document.createElement('button');
+                        cancelGoDownButton.textContent = 'Cancel';
+                        cancelGoDownButton.addEventListener('click', () => {
+                            this.clearGinConfirmation();
+                        });
+                        
+                        confirmGoDownDiv.appendChild(cancelGoDownButton);
+                        
+                        // Clear any existing confirmation
+                        this.clearGinConfirmation();
+                        
+                        // Add to the display
+                        this.currentSetsElement.appendChild(confirmGoDownDiv);
+                    }
+                }
+            }
+
+            // Clear any Gin/Go Down confirmation UI
+            clearGinConfirmation() {
+                const confirmationDiv = this.currentSetsElement.querySelector('.action-buttons');
+                if (confirmationDiv) {
+                    confirmationDiv.remove();
+                }
+            }
+
+            // Handle player declaring Grand Gin
+            handlePlayerGrandGin() {
+                // Hide sets manager
+                this.setsManagerElement.style.display = 'none';
+                
+                // Show player sets
+                this.showPlayerSets();
+                
+                // Show opponent's sets
+                this.showOpponentSets();
+                
+                // Calculate scores
+                this.calculateGrandGinScore(true); // Player wins
+                
+                // End the hand
+                this.endHand("You win with Grand Gin!");
+            }
+
+            // Handle player declaring Gin
+            handlePlayerGin() {
+                // Hide sets manager
+                this.setsManagerElement.style.display = 'none';
+                
+                // Show player sets
+                this.showPlayerSets();
+                
+                // Show opponent's sets
+                this.showOpponentSets();
+                
+                // Calculate scores
+                this.calculateGinScore(true); // Player wins
+                
+                // End the hand
+                this.endHand("You win with Gin!");
+            }
+
+            // Handle player going down
+            handlePlayerGoDown(goDownCards) {
+                // Calculate the Go Down value
+                const goDownValue = goDownCards.reduce((sum, card) => sum + card.value, 0);
+                
+                // Hide sets manager
+                this.setsManagerElement.style.display = 'none';
+                
+                // Show player sets
+                this.showPlayerSets();
+                
+                // Show opponent's sets
+                this.showOpponentSets();
+                
+                // Check for Go Bust condition
+                const opponentUnmatchedValue = this.opponent.getUnmatchedCardsValue();
+                
+                if (opponentUnmatchedValue <= goDownValue) {
+                    // Opponent wins with Go Bust
+                    this.calculateGoBustScore(false, goDownValue, opponentUnmatchedValue); // Opponent wins
+                    this.endHand(`Opponent wins with Go Bust! Their unmatched cards (${opponentUnmatchedValue}) are less than or equal to your Go Down value (${goDownValue}).`);
+                } else {
+                    // Player wins with Go Down
+                    this.calculateGoDownScore(true, goDownValue, opponentUnmatchedValue); // Player wins
+                    this.endHand(`You win with Go Down! You went down with ${goDownValue}, and opponent had ${opponentUnmatchedValue} in unmatched cards.`);
+                }
+            }
+
+            // Handle opponent declaring Grand Gin
+            handleOpponentGrandGin() {
+                // Show player sets
+                this.showPlayerSets();
+                
+                // Show opponent's sets
+                this.showOpponentSets();
+                
+                // Calculate scores
+                this.calculateGrandGinScore(false); // Opponent wins
+                
+                // End the hand
+                this.endHand("Opponent wins with Grand Gin!");
+            }
+
+            // Handle opponent declaring Gin
+            handleOpponentGin() {
+                // Show player sets
+                this.showPlayerSets();
+                
+                // Show opponent's sets
+                this.showOpponentSets();
+                
+                // Calculate scores
+                this.calculateGinScore(false); // Opponent wins
+                
+                // End the hand
+                this.endHand("Opponent wins with Gin!");
+            }
+
+            // Handle opponent going down
+            handleOpponentGoDown(goDownCards) {
+                // Calculate the Go Down value
+                const goDownValue = goDownCards.reduce((sum, card) => sum + card.value, 0);
+                
+                // Show player sets
+                this.showPlayerSets();
+                
+                // Show opponent's sets
+                this.showOpponentSets();
+                
+                // Check for Go Bust condition
+                const playerUnmatchedValue = this.player.getUnmatchedCardsValue();
+                
+                if (playerUnmatchedValue <= goDownValue) {
+                    // Player wins with Go Bust
+                    this.calculateGoBustScore(true, goDownValue, playerUnmatchedValue); // Player wins
+                    this.endHand(`You win with Go Bust! Your unmatched cards (${playerUnmatchedValue}) are less than or equal to opponent's Go Down value (${goDownValue}).`);
+                } else {
+                    // Opponent wins with Go Down
+                    this.calculateGoDownScore(false, goDownValue, playerUnmatchedValue); // Opponent wins
+                    this.endHand(`Opponent wins with Go Down! They went down with ${goDownValue}, and you had ${playerUnmatchedValue} in unmatched cards.`);
+                }
+            }
+
+            // Show player's sets
+            showPlayerSets() {
+                this.playerHandElement.style.display = 'none';
+                this.playerSetsElement.style.display = 'flex';
+                this.playerSetsElement.innerHTML = '';
+                
+                // Add each set to the display
+                for (const set of this.player.sets) {
+                    const setElement = set.createSetElement();
+                    this.playerSetsElement.appendChild(setElement);
+                }
+                
+                // Show unmatched cards
+                const unmatchedCards = this.player.getUnmatchedCards();
+                if (unmatchedCards.length > 0) {
+                    this.playerUnmatchedElement.style.display = 'flex';
+                    this.playerUnmatchedElement.innerHTML = '';
+                    
+                    const unmatchedTitle = document.createElement('div');
+                    unmatchedTitle.textContent = 'Unmatched Cards:';
+                    unmatchedTitle.style.width = '100%';
+                    unmatchedTitle.style.textAlign = 'center';
+                    unmatchedTitle.style.marginBottom = '5px';
+                    this.playerUnmatchedElement.appendChild(unmatchedTitle);
+                    
+                    for (const card of unmatchedCards) {
+                        const cardElement = card.createCardElement();
+                        this.playerUnmatchedElement.appendChild(cardElement);
+                    }
+                }
+            }
+
+            // Show opponent's sets
+            showOpponentSets() {
+                this.opponentHandElement.style.display = 'none';
+                this.opponentSetsElement.style.display = 'flex';
+                this.opponentSetsElement.innerHTML = '';
+                
+                // Set opponent cards to face up for reveal
+                for (const card of this.opponent.hand) {
+                    card.faceUp = true;
+                }
+                
+                // Show opponent's sets
+                for (const set of this.opponent.sets) {
+                    const setElement = set.createSetElement();
+                    this.opponentSetsElement.appendChild(setElement);
+                }
+                
+                // Show unmatched cards
+                const unmatchedCards = this.opponent.getUnmatchedCards();
+                if (unmatchedCards.length > 0) {
+                    const unmatchedContainer = document.createElement('div');
+                    unmatchedContainer.className = 'unmatched-cards';
+                    
+                    const unmatchedTitle = document.createElement('div');
+                    unmatchedTitle.textContent = 'Unmatched Cards:';
+                    unmatchedTitle.style.width = '100%';
+                    unmatchedTitle.style.textAlign = 'center';
+                    unmatchedTitle.style.marginBottom = '5px';
+                    unmatchedContainer.appendChild(unmatchedTitle);
+                    
+                    for (const card of unmatchedCards) {
+                        card.faceUp = true;
+                        const cardElement = card.createCardElement();
+                        unmatchedContainer.appendChild(cardElement);
+                    }
+                    
+                    this.opponentSetsElement.appendChild(unmatchedContainer);
+                }
+            }
+
+            // Calculate score for Grand Gin
+            calculateGrandGinScore(playerWins) {
+                const winner = playerWins ? this.player : this.opponent;
+                const loser = playerWins ? this.opponent : this.player;
+                
+                // Calculate unmatched cards value for the loser
+                const loserUnmatchedValue = loser.getUnmatchedCardsValue();
+                
+                // Calculate points
+                let points = 50 + loserUnmatchedValue;
+                let cocottes = 5;
+                
+                // Apply double scoring if applicable
+                if (this.isDoubleScoring) {
+                    points *= 2;
+                    cocottes = 9;
+                }
+                
+                // Update scores
+                winner.score += points;
+                winner.cocottes += cocottes;
+                
+                // Update score display
+                this.updateScoreDisplay();
+                
+                return { points, cocottes };
+            }
+
+            // Calculate score for Gin
+            calculateGinScore(playerWins) {
+                const winner = playerWins ? this.player : this.opponent;
+                const loser = playerWins ? this.opponent : this.player;
+                
+                // Calculate unmatched cards value for the loser
+                const loserUnmatchedValue = loser.getUnmatchedCardsValue();
+                
+                // Calculate points
+                let points = 25 + loserUnmatchedValue;
+                let cocottes = 3;
+                
+                // Apply double scoring if applicable
+                if (this.isDoubleScoring) {
+                    points *= 2;
+                    cocottes = 5;
+                }
+                
+                // Update scores
+                winner.score += points;
+                winner.cocottes += cocottes;
+                
+                // Update score display
+                this.updateScoreDisplay();
+                
+                return { points, cocottes };
+            }
+
+            // Calculate score for Go Down
+            calculateGoDownScore(playerWins, goDownValue, loserUnmatchedValue) {
+                const winner = playerWins ? this.player : this.opponent;
+                const loser = playerWins ? this.opponent : this.player;
+                
+                // Calculate points
+                let points = loserUnmatchedValue - goDownValue;
+                const cocottes = 1;
+                
+                // Apply double scoring if applicable
+                if (this.isDoubleScoring) {
+                    points *= 2;
+                }
+                
+                // Update scores
+                winner.score += points;
+                winner.cocottes += cocottes;
+                
+                // Update score display
+                this.updateScoreDisplay();
+                
+                return { points, cocottes };
+            }
+
+            // Calculate score for Go Bust
+            calculateGoBustScore(playerWins, goDownValue, winnerUnmatchedValue) {
+                const winner = playerWins ? this.player : this.opponent;
+                
+                // Calculate points
+                let points = 50 + (goDownValue - winnerUnmatchedValue);
+                const cocottes = 1;
+                
+                // Apply double scoring if applicable
+                if (this.isDoubleScoring) {
+                    points *= 2;
+                }
+                
+                // Update scores
+                winner.score += points;
+                winner.cocottes += cocottes;
+                
+                // Update score display
+                this.updateScoreDisplay();
+                
+                return { points, cocottes };
+            }
+
+            // End the current hand
+            endHand(message) {
+                this.isHandOver = true;
+                this.updateGameStatus(message);
+                
+                // Display game end dialog
+                const gameEndDialog = document.getElementById('gameEndDialog');
+                const gameEndTitle = document.getElementById('gameEndTitle');
+                const gameEndContent = document.getElementById('gameEndContent');
+                
+                gameEndTitle.textContent = 'Hand Complete';
+                
+                // Create content for the dialog
+                gameEndContent.innerHTML = '';
+                
+                const resultMessage = document.createElement('p');
+                resultMessage.textContent = message;
+                resultMessage.style.marginBottom = '15px';
+                resultMessage.style.fontWeight = 'bold';
+                gameEndContent.appendChild(resultMessage);
+                
+                // Add score information
+                const scoreInfo = document.createElement('div');
+                
+                const playerScoreInfo = document.createElement('p');
+                playerScoreInfo.textContent = `Your Score: ${this.player.score} points, ${this.player.cocottes} cocottes`;
+                scoreInfo.appendChild(playerScoreInfo);
+                
+                const opponentScoreInfo = document.createElement('p');
+                opponentScoreInfo.textContent = `Opponent's Score: ${this.opponent.score} points, ${this.opponent.cocottes} cocottes`;
+                scoreInfo.appendChild(opponentScoreInfo);
+                
+                gameEndContent.appendChild(scoreInfo);
+                
+                // Show the dialog
+                gameEndDialog.style.display = 'flex';
+            }
+        }
+
+        // Initialize the game when the page is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            const game = new MandelGinGame();
+        });
+    </script>
+</body>
+</html>; // Player can see their cards
+                    }
+                    firstPlayer.addCard(card);
+                }
+                
+                // Deal 11 cards to the second player
+                const secondPlayer = this.isPlayerTurn ? this.opponent : this.player;
+                for (let i = 0; i < 11; i++) {
+                    const card = this.mainDeck.drawCard();
+                    if (!card) break;
+                    
+                    if (secondPlayer === this.player) {
+                        card.faceUp = true; // Player can see their cards
+                    }
+                    secondPlayer.addCard(card);
+                }
+                
+                // Initialize the discard pile with one card
+                const initialDiscard = this.mainDeck.drawCard();
+                if (initialDiscard) {
+                    initialDiscard.faceUp = true;
+                    this.discardPile.push(initialDiscard);
+                }
+            }
+
+            // Update the display of cards in hands
+            updateHandsDisplay() {
+                // Update player's hand
+                this.playerHandElement.innerHTML = '';
+                
+                for (const card of this.player.hand) {
+                    const cardElement = card.createCardElement();
+                    
+                    // Add click handler for player's cards
+                    cardElement.addEventListener('click', (e) => {
+                        // Only allow discarding if it's the player's turn and they've drawn a card
+                        if (this.isPlayerTurn && this.playerDrew) {
+                            this.onPlayerCardClick(card.id);
+                        } else if (this.setsManagerElement.style.display !== 'none') {
+                            // For sets management
+                            this.toggleCardSelection(card.id);
+                            this.updateAvailableCardsDisplay();
+                        }
+                    });
+                    
+                    // Add selection state
+                    if (this.selectedCards.includes(card.id)) {
+                        cardElement.classList.add('selected');
+                    }
+                    
+                    this.playerHandElement.appendChild(cardElement);
+                }
+                
+                // Update opponent's hand
+                this.opponentHandElement.innerHTML = '';
+                
+                for (const card of this.opponent.hand) {
+                    const cardElement = card.createCardElement();
+                    this.opponentHandElement.appendChild(cardElement);
+                }
+            }
+
+            // Update the deck count display
+            updateDeckCount() {
+                this.deckCountElement.textContent = this.mainDeck.remainingCards;
+            }
+
+            // Update the discard pile display
+            updateDiscardPile() {
+                this.discardElement.innerHTML = '';
+                
+                if (this.discardPile.length > 0) {
+                    const topCard = this.discardPile[this.discardPile.length - 1];
+                    this.discardElement.appendChild(topCard.createCardElement());
+                    this.discardCountElement.textContent = this.discardPile.length;
+                } else {
+                    this.discardCountElement.textContent = '0';
+                }
+            }
+
+            // Update game status message
+            updateGameStatus(message) {
+                if (message) {
+                    this.gameStatusElement.textContent = message;
+                } else {
+                    if (this.isHandOver) {
+                        this.gameStatusElement.textContent = "Hand complete. Click 'Next Hand' to continue.";
+                    } else if (this.isPlayerTurn) {
+                        if (!this.playerDrew) {
+                            this.gameStatusElement.textContent = "Your turn. Draw a card from the deck or discard pile.";
+                        } else {
+                            this.gameStatusElement.textContent = "Discard a card or make a winning move.";
+                        }
+                    } else {
+                        this.gameStatusElement.textContent = "Opponent's turn...";
+                    }
+                }
+            }
+
+            // Update score display
+            updateScoreDisplay() {
+                this.playerPointsElement.textContent = this.player.score;
+                this.playerCocottesElement.textContent = this.player.cocottes;
+                this.opponentPointsElement.textContent = this.opponent.score;
+                this.opponentCocottesElement.textContent = this.opponent.cocottes;
+            }
+
+            // Handle clicking on the deck
+            onDeckClick() {
+                if (this.isHandOver || !this.isPlayerTurn || this.playerDrew) return;
+                
+                const card = this.mainDeck.drawCard();
+                if (!card) {
+                    // If deck is empty, reshuffle discard pile (excluding top card)
+                    if (this.discardPile.length > 1) {
+                        const topCard = this.discardPile.pop();
+                        this.mainDeck.cards = [...this.discardPile];
+                        this.discardPile = [topCard];
+                        this.mainDeck.shuffle();
+                        this.updateDeckCount();
+                        this.updateDiscardPile();
+                        
+                        // Try drawing again
+                        const newCard = this.mainDeck.drawCard();
+                        if (newCard) {
+                            this.addCardToPlayerHand(newCard);
+                        }
+                    } else {
+                        this.updateGameStatus("No more cards in the deck!");
+                    }
+                } else {
+                    this.addCardToPlayerHand(card);
+                }
+            }
+
+            // Add a card to the player's hand and update the game state
+            addCardToPlayerHand(card) {
+                card.faceUp = true
