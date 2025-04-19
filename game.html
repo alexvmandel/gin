@@ -1350,219 +1350,16 @@
                     if (currentCard.numericRank === prevCard.numericRank + 1) {
                         currentRun.push(currentCard);
                     } else {
-                        if (currentRun.length >= 3) {
-                            runs.push([...currentRun]);
-                        }
-                        currentRun = [currentCard];
+                        this.updateGameStatus("No more cards in the deck!");
                     }
-                }
-                
-                // Don't forget the last run
-                if (currentRun.length >= 3) {
-                    runs.push(currentRun);
-                }
-                
-                // Special case: Ace can be low or high
-                // Check for runs with Ace as low (A,2,3)
-                const aceCards = cards.filter(card => card.rank === '1');
-                const twoCards = cards.filter(card => card.rank === '2');
-                const threeCards = cards.filter(card => card.rank === '3');
-                
-                if (aceCards.length > 0 && twoCards.length > 0 && threeCards.length > 0) {
-                    runs.push([aceCards[0], twoCards[0], threeCards[0]]);
-                }
-                
-                // Check for runs with Ace as high (Q,K,A)
-                const queenCards = cards.filter(card => card.rank === '12');
-                const kingCards = cards.filter(card => card.rank === '13');
-                
-                if (aceCards.length > 0 && kingCards.length > 0 && queenCards.length > 0) {
-                    runs.push([queenCards[0], kingCards[0], aceCards[0]]);
-                }
-                
-                return runs;
-            }
-        }
-
-        // Game class to manage the overall game state
-        class MandelGinGame {
-            constructor() {
-                this.player = new Player(false);
-                this.opponent = new Player(true);
-                this.mainDeck = null;
-                this.descentDeck = null;
-                this.discardPile = [];
-                this.currentPlayer = null;
-                this.isGameOver = false;
-                this.isHandOver = false;
-                this.isPlayerTurn = false;
-                this.descentCard = null;
-                this.isDoubleScoring = false;
-                this.isGinObligatoire = false;
-                this.selectedCards = [];
-                this.playerDrew = false;
-                
-                // UI elements
-                this.playerHandElement = document.getElementById('playerHand');
-                this.opponentHandElement = document.getElementById('opponentHand');
-                this.deckElement = document.getElementById('deck');
-                this.deckCountElement = document.getElementById('deckCount');
-                this.discardElement = document.getElementById('discard');
-                this.discardCountElement = document.getElementById('discardCount');
-                this.descentCardElement = document.getElementById('descentCard');
-                this.descentValueElement = document.getElementById('descentValue');
-                this.gameStatusElement = document.getElementById('gameStatus');
-                this.playerPointsElement = document.getElementById('playerPoints');
-                this.playerCocottesElement = document.getElementById('playerCocottes');
-                this.opponentPointsElement = document.getElementById('opponentPoints');
-                this.opponentCocottesElement = document.getElementById('opponentCocottes');
-                this.actionButtonsElement = document.getElementById('actionButtons');
-                this.goDownButtonElement = document.getElementById('goDownButton');
-                this.ginButtonElement = document.getElementById('ginButton');
-                this.grandGinButtonElement = document.getElementById('grandGinButton');
-                this.setsManagerElement = document.getElementById('setsManager');
-                this.availableCardsElement = document.getElementById('availableCards');
-                this.currentSetsElement = document.getElementById('currentSets');
-                this.createSetButtonElement = document.getElementById('createSetButton');
-                this.clearSetButtonElement = document.getElementById('clearSetButton');
-                this.playerSetsElement = document.getElementById('playerSets');
-                this.opponentSetsElement = document.getElementById('opponentSets');
-                this.playerUnmatchedElement = document.getElementById('playerUnmatched');
-                
-                // Event listeners
-                document.getElementById('newGameButton').addEventListener('click', () => this.setupNewGame());
-                document.getElementById('newGameMenuButton').addEventListener('click', () => {
-                    document.getElementById('menuDialog').style.display = 'none';
-                    this.setupNewGame();
-                });
-                
-                this.deckElement.addEventListener('click', () => this.onDeckClick());
-                this.discardElement.addEventListener('click', () => this.onDiscardClick());
-                
-                this.goDownButtonElement.addEventListener('click', () => this.onGoDownClick());
-                this.ginButtonElement.addEventListener('click', () => this.onGinClick());
-                this.grandGinButtonElement.addEventListener('click', () => this.onGrandGinClick());
-                
-                this.createSetButtonElement.addEventListener('click', () => this.onCreateSetClick());
-                this.clearSetButtonElement.addEventListener('click', () => this.clearSelectedCards());
-                
-                document.getElementById('confirmGoDownButton').addEventListener('click', () => this.confirmGoDown());
-                document.getElementById('cancelGoDownButton').addEventListener('click', () => {
-                    document.getElementById('goDownDialog').style.display = 'none';
-                });
-                
-                document.getElementById('rulesButton').addEventListener('click', () => {
-                    document.getElementById('rulesDialog').style.display = 'flex';
-                });
-                
-                document.getElementById('closeRulesButton').addEventListener('click', () => {
-                    document.getElementById('rulesDialog').style.display = 'none';
-                });
-                
-                document.getElementById('menuButton').addEventListener('click', () => {
-                    document.getElementById('menuDialog').style.display = 'flex';
-                });
-                
-                document.getElementById('closeMenuButton').addEventListener('click', () => {
-                    document.getElementById('menuDialog').style.display = 'none';
-                });
-                
-                document.getElementById('rulesMenuButton').addEventListener('click', () => {
-                    document.getElementById('menuDialog').style.display = 'none';
-                    document.getElementById('rulesDialog').style.display = 'flex';
-                });
-                
-                document.getElementById('nextHandButton').addEventListener('click', () => {
-                    document.getElementById('gameEndDialog').style.display = 'none';
-                    this.setupNewHand();
-                });
-                
-                // Setup initial game
-                this.setupNewGame();
-            }
-
-            // Initialize a new game
-            setupNewGame() {
-                this.player.score = 0;
-                this.player.cocottes = 0;
-                this.opponent.score = 0;
-                this.opponent.cocottes = 0;
-                this.updateScoreDisplay();
-                this.setupNewHand();
-            }
-
-            // Initialize a new hand
-            setupNewHand() {
-                // Reset game state
-                this.player.hand = [];
-                this.player.sets = [];
-                this.opponent.hand = [];
-                this.opponent.sets = [];
-                this.discardPile = [];
-                this.isGameOver = false;
-                this.isHandOver = false;
-                this.playerDrew = false;
-                this.selectedCards = [];
-                
-                // Clear UI elements
-                this.playerHandElement.innerHTML = '';
-                this.opponentHandElement.innerHTML = '';
-                this.playerSetsElement.innerHTML = '';
-                this.opponentSetsElement.innerHTML = '';
-                this.playerUnmatchedElement.innerHTML = '';
-                this.playerSetsElement.style.display = 'none';
-                this.opponentSetsElement.style.display = 'none';
-                this.playerUnmatchedElement.style.display = 'none';
-                this.setsManagerElement.style.display = 'none';
-                this.actionButtonsElement.style.display = 'none';
-                
-                // Initialize decks
-                this.mainDeck = new Deck();
-                this.descentDeck = new Deck();
-                
-                // Deal the Descent card
-                this.descentCard = this.descentDeck.drawCard();
-                this.descentCard.faceUp = true;
-                
-                // Determine scoring rules based on the Descent card
-                this.isDoubleScoring = this.descentCard.suit === 'H' || this.descentCard.suit === 'S';
-                this.isGinObligatoire = this.descentCard.rank === '1'; // Ace
-                
-                // Display the Descent card
-                this.descentCardElement.innerHTML = '';
-                this.descentCardElement.appendChild(this.descentCard.createCardElement());
-                
-                // Update Descent value display
-                this.descentValueElement.textContent = `${this.descentCard.displayRank} (${this.isDoubleScoring ? 'Double' : 'Single'} Scoring${this.isGinObligatoire ? ', Gin Obligatoire' : ''})`;
-                
-                // Determine first player randomly for the first hand
-                this.isPlayerTurn = Math.random() < 0.5;
-                
-                // Deal cards
-                this.dealInitialCards();
-                
-                // Update UI
-                this.updateDeckCount();
-                this.updateDiscardPile();
-                this.updateHandsDisplay();
-                this.updateGameStatus();
-                
-                // Start game
-                if (!this.isPlayerTurn) {
-                    setTimeout(() => this.playOpponentTurn(), 1000);
+                } else {
+                    this.addCardToPlayerHand(card);
                 }
             }
 
-            // Deal initial cards to both players
-            dealInitialCards() {
-                // Deal 10 cards to the first player
-                const firstPlayer = this.isPlayerTurn ? this.player : this.opponent;
-                for (let i = 0; i < 10; i++) {
-                    const card = this.mainDeck.drawCard();
-                    if (!card) break;
-                    
-                    if (firstPlayer === this.player) {
-                        card.faceUp = true;
+            // Add a card to the player's hand and update the game state
+            addCardToPlayerHand(card) {
+                card.faceUp = true;
                 this.player.addCard(card);
                 this.playerDrew = true;
                 this.updateHandsDisplay();
@@ -1736,7 +1533,6 @@
                                 for (const card of validGoDownCombo) {
                                     this.opponent.removeCard(card.id);
                                     card.faceUp = true;
-                                    this.discardPile.push(card);
                                 }
                                 
                                 this.handleOpponentGoDown(validGoDownCombo);
@@ -2073,33 +1869,32 @@
                     );
                     
                     // If there's one more unmatched card than the Go Down cards, it's for discard
-                    if (remainingUnmatched.length === this.goDownCards.length + 1) {
+                    if (remainingUnmatched.length === 1) {
                         // Add buttons to confirm Go Down
                         const confirmGoDownDiv = document.createElement('div');
                         confirmGoDownDiv.className = 'action-buttons';
                         confirmGoDownDiv.style.marginTop = '15px';
                         
                         const confirmGoDownText = document.createElement('p');
-                        confirmGoDownText.textContent = `Select one card to discard:`;
+                        confirmGoDownText.textContent = `Discard this card to Go Down:`;
                         
                         confirmGoDownDiv.appendChild(confirmGoDownText);
                         
-                        // Add each card as a button option
-                        for (const card of remainingUnmatched) {
-                            const cardButton = document.createElement('button');
-                            cardButton.textContent = `${card.displayRank}${card.suitSymbol}`;
-                            cardButton.addEventListener('click', () => {
-                                // Remove the card from hand for discard
-                                this.player.removeCard(card.id);
-                                card.faceUp = true;
-                                this.discardPile.push(card);
-                                
-                                // Handle Go Down with the selected Go Down cards
-                                this.handlePlayerGoDown(this.goDownCards);
-                            });
+                        // Add card as a button option
+                        const card = remainingUnmatched[0];
+                        const cardButton = document.createElement('button');
+                        cardButton.textContent = `${card.displayRank}${card.suitSymbol}`;
+                        cardButton.addEventListener('click', () => {
+                            // Remove the card from hand for discard
+                            this.player.removeCard(card.id);
+                            card.faceUp = true;
+                            this.discardPile.push(card);
                             
-                            confirmGoDownDiv.appendChild(cardButton);
-                        }
+                            // Handle Go Down with the selected Go Down cards
+                            this.handlePlayerGoDown(this.goDownCards);
+                        });
+                        
+                        confirmGoDownDiv.appendChild(cardButton);
                         
                         const cancelGoDownButton = document.createElement('button');
                         cancelGoDownButton.textContent = 'Cancel';
@@ -2461,11 +2256,232 @@
 
         // Initialize the game when the page is loaded
         document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM Loaded - Starting game");
             const game = new MandelGinGame();
         });
     </script>
-</body>
-</html>; // Player can see their cards
+        if (currentRun.length >= 3) {
+                            runs.push([...currentRun]);
+                        }
+                        currentRun = [currentCard];
+                    }
+                }
+                
+                // Don't forget the last run
+                if (currentRun.length >= 3) {
+                    runs.push(currentRun);
+                }
+                
+                // Special case: Ace can be low or high
+                // Check for runs with Ace as low (A,2,3)
+                const aceCards = cards.filter(card => card.rank === '1');
+                const twoCards = cards.filter(card => card.rank === '2');
+                const threeCards = cards.filter(card => card.rank === '3');
+                
+                if (aceCards.length > 0 && twoCards.length > 0 && threeCards.length > 0) {
+                    runs.push([aceCards[0], twoCards[0], threeCards[0]]);
+                }
+                
+                // Check for runs with Ace as high (Q,K,A)
+                const queenCards = cards.filter(card => card.rank === '12');
+                const kingCards = cards.filter(card => card.rank === '13');
+                
+                if (aceCards.length > 0 && kingCards.length > 0 && queenCards.length > 0) {
+                    runs.push([queenCards[0], kingCards[0], aceCards[0]]);
+                }
+                
+                return runs;
+            }
+        }
+
+        // Game class to manage the overall game state
+        class MandelGinGame {
+            constructor() {
+                this.player = new Player(false);
+                this.opponent = new Player(true);
+                this.mainDeck = null;
+                this.descentDeck = null;
+                this.discardPile = [];
+                this.currentPlayer = null;
+                this.isGameOver = false;
+                this.isHandOver = false;
+                this.isPlayerTurn = false;
+                this.descentCard = null;
+                this.isDoubleScoring = false;
+                this.isGinObligatoire = false;
+                this.selectedCards = [];
+                this.playerDrew = false;
+                this.goDownCards = null;
+                
+                // UI elements
+                this.playerHandElement = document.getElementById('playerHand');
+                this.opponentHandElement = document.getElementById('opponentHand');
+                this.deckElement = document.getElementById('deck');
+                this.deckCountElement = document.getElementById('deckCount');
+                this.discardElement = document.getElementById('discard');
+                this.discardCountElement = document.getElementById('discardCount');
+                this.descentCardElement = document.getElementById('descentCard');
+                this.descentValueElement = document.getElementById('descentValue');
+                this.gameStatusElement = document.getElementById('gameStatus');
+                this.playerPointsElement = document.getElementById('playerPoints');
+                this.playerCocottesElement = document.getElementById('playerCocottes');
+                this.opponentPointsElement = document.getElementById('opponentPoints');
+                this.opponentCocottesElement = document.getElementById('opponentCocottes');
+                this.actionButtonsElement = document.getElementById('actionButtons');
+                this.goDownButtonElement = document.getElementById('goDownButton');
+                this.ginButtonElement = document.getElementById('ginButton');
+                this.grandGinButtonElement = document.getElementById('grandGinButton');
+                this.setsManagerElement = document.getElementById('setsManager');
+                this.availableCardsElement = document.getElementById('availableCards');
+                this.currentSetsElement = document.getElementById('currentSets');
+                this.createSetButtonElement = document.getElementById('createSetButton');
+                this.clearSetButtonElement = document.getElementById('clearSetButton');
+                this.playerSetsElement = document.getElementById('playerSets');
+                this.opponentSetsElement = document.getElementById('opponentSets');
+                this.playerUnmatchedElement = document.getElementById('playerUnmatched');
+                
+                // Event listeners
+                this.setupEventListeners();
+                
+                // Setup initial game
+                this.setupNewGame();
+            }
+
+            // Set up all event listeners
+            setupEventListeners() {
+                document.getElementById('newGameButton').addEventListener('click', () => this.setupNewGame());
+                document.getElementById('newGameMenuButton').addEventListener('click', () => {
+                    document.getElementById('menuDialog').style.display = 'none';
+                    this.setupNewGame();
+                });
+                
+                this.deckElement.addEventListener('click', () => this.onDeckClick());
+                this.discardElement.addEventListener('click', () => this.onDiscardClick());
+                
+                this.goDownButtonElement.addEventListener('click', () => this.onGoDownClick());
+                this.ginButtonElement.addEventListener('click', () => this.onGinClick());
+                this.grandGinButtonElement.addEventListener('click', () => this.onGrandGinClick());
+                
+                this.createSetButtonElement.addEventListener('click', () => this.onCreateSetClick());
+                this.clearSetButtonElement.addEventListener('click', () => this.clearSelectedCards());
+                
+                document.getElementById('confirmGoDownButton').addEventListener('click', () => this.confirmGoDown());
+                document.getElementById('cancelGoDownButton').addEventListener('click', () => {
+                    document.getElementById('goDownDialog').style.display = 'none';
+                });
+                
+                document.getElementById('rulesButton').addEventListener('click', () => {
+                    document.getElementById('rulesDialog').style.display = 'flex';
+                });
+                
+                document.getElementById('closeRulesButton').addEventListener('click', () => {
+                    document.getElementById('rulesDialog').style.display = 'none';
+                });
+                
+                document.getElementById('menuButton').addEventListener('click', () => {
+                    document.getElementById('menuDialog').style.display = 'flex';
+                });
+                
+                document.getElementById('closeMenuButton').addEventListener('click', () => {
+                    document.getElementById('menuDialog').style.display = 'none';
+                });
+                
+                document.getElementById('rulesMenuButton').addEventListener('click', () => {
+                    document.getElementById('menuDialog').style.display = 'none';
+                    document.getElementById('rulesDialog').style.display = 'flex';
+                });
+                
+                document.getElementById('nextHandButton').addEventListener('click', () => {
+                    document.getElementById('gameEndDialog').style.display = 'none';
+                    this.setupNewHand();
+                });
+            }
+
+            // Initialize a new game
+            setupNewGame() {
+                console.log("Starting new game");
+                this.player.score = 0;
+                this.player.cocottes = 0;
+                this.opponent.score = 0;
+                this.opponent.cocottes = 0;
+                this.updateScoreDisplay();
+                this.setupNewHand();
+            }
+
+            // Initialize a new hand
+            setupNewHand() {
+                console.log("Starting new hand");
+                // Reset game state
+                this.player.hand = [];
+                this.player.sets = [];
+                this.opponent.hand = [];
+                this.opponent.sets = [];
+                this.discardPile = [];
+                this.isGameOver = false;
+                this.isHandOver = false;
+                this.playerDrew = false;
+                this.selectedCards = [];
+                this.goDownCards = null;
+                
+                // Clear UI elements
+                this.playerHandElement.innerHTML = '';
+                this.opponentHandElement.innerHTML = '';
+                this.playerSetsElement.innerHTML = '';
+                this.opponentSetsElement.innerHTML = '';
+                this.playerUnmatchedElement.innerHTML = '';
+                this.playerSetsElement.style.display = 'none';
+                this.opponentSetsElement.style.display = 'none';
+                this.playerUnmatchedElement.style.display = 'none';
+                this.setsManagerElement.style.display = 'none';
+                this.actionButtonsElement.style.display = 'none';
+                
+                // Initialize decks
+                this.mainDeck = new Deck();
+                this.descentDeck = new Deck();
+                
+                // Deal the Descent card
+                this.descentCard = this.descentDeck.drawCard();
+                this.descentCard.faceUp = true;
+                
+                // Determine scoring rules based on the Descent card
+                this.isDoubleScoring = this.descentCard.suit === 'H' || this.descentCard.suit === 'S';
+                this.isGinObligatoire = this.descentCard.rank === '1'; // Ace
+                
+                // Display the Descent card
+                this.descentCardElement.innerHTML = '';
+                this.descentCardElement.appendChild(this.descentCard.createCardElement());
+                
+                // Update Descent value display
+                this.descentValueElement.textContent = `${this.descentCard.displayRank} (${this.isDoubleScoring ? 'Double' : 'Single'} Scoring${this.isGinObligatoire ? ', Gin Obligatoire' : ''})`;
+                
+                // Determine first player randomly for the first hand
+                this.isPlayerTurn = Math.random() < 0.5;
+                
+                // Deal cards
+                this.dealInitialCards();
+                
+                // Update UI
+                this.updateDeckCount();
+                this.updateDiscardPile();
+                this.updateHandsDisplay();
+                this.updateGameStatus();
+                
+                // Start game
+                if (!this.isPlayerTurn) {
+                    setTimeout(() => this.playOpponentTurn(), 1000);
+                }
+            }
+
+            // Deal initial cards to both players
+            dealInitialCards() {
+                // Deal 10 cards to the first player
+                const firstPlayer = this.isPlayerTurn ? this.player : this.opponent;
+                for (let i = 0; i < 10; i++) {
+                    const card = this.mainDeck.drawCard();
+                    if (!card) break;
+                    
+                    if (firstPlayer === this.player) {
+                        card.faceUp = true; // Player can see their cards
                     }
                     firstPlayer.addCard(card);
                 }
@@ -2593,13 +2609,3 @@
                             this.addCardToPlayerHand(newCard);
                         }
                     } else {
-                        this.updateGameStatus("No more cards in the deck!");
-                    }
-                } else {
-                    this.addCardToPlayerHand(card);
-                }
-            }
-
-            // Add a card to the player's hand and update the game state
-            addCardToPlayerHand(card) {
-                card.faceUp = true
