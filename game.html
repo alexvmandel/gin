@@ -1145,24 +1145,11 @@
                                            ['J', 'Q', 'K'].includes(descentValue) ? 10 :
                                            parseInt(descentValue);
                 
-                // We need at least one card for discard and at least one for Go Down
+                // We need at least 2 cards (1 for Go Down, 1 for discard)
                 if (unmatchedCards.length < 2) return false;
                 
-                // If at least one combination of unmatched cards has value <= descent value
-                return this.canFormGoDownCombination(unmatchedCards, numericDescentValue);
-            }
-
-            // Helper to check if any combination of unmatched cards can form a valid Go Down
-            canFormGoDownCombination(cards, maxValue) {
-                // Base case: if any single card's value is <= maxValue
-                if (cards.some(card => card.value <= maxValue)) return true;
-                
-                // Try all combinations of multiple cards to see if any sum to <= maxValue
-                // Sort cards to make combinations more efficient
-                const sortedCards = [...cards].sort((a, b) => a.value - b.value);
-                
-                // Check if any subset can form a valid Go Down
-                return this.hasSubsetSumLessOrEqual(sortedCards, maxValue);
+                // Check if any subset of unmatched cards (except one for discard) has sum <= descentValue
+                return this.hasSubsetSumLessOrEqual(unmatchedCards, numericDescentValue);
             }
 
             // Check if there's any subset of cards whose sum is <= maxValue
@@ -1875,41 +1862,50 @@
                         this.handleOpponentGin();
                         return;
                     } else if (this.opponent.canGoDown(descentValue) && !this.isGinObligatoire) {
-                        // Opponent Goes Down - FIXED logic
+                        // Opponent Goes Down - STRICTLY VALIDATED logic
                         const unmatchedCards = this.opponent.getUnmatchedCards();
                         
-                        // First, find valid Go Down combinations
-                        const validGoDownCombos = this.findValidGoDownCombinations(unmatchedCards, this.getDescentValue());
-                        
-                        if (validGoDownCombos.length > 0) {
-                            // Use the combination with the highest value (that's still <= descent value)
-                            const bestCombo = validGoDownCombos.sort((a, b) => {
-                                const valueA = a.reduce((sum, card) => sum + card.value, 0);
-                                const valueB = b.reduce((sum, card) => sum + card.value, 0);
-                                return valueB - valueA; // Higher value first
-                            })[0];
+                        // Must have at least 2 cards (1+ for Go Down, 1 for discard)
+                        if (unmatchedCards.length >= 2) {
+                            // Calculate the numeric descent value
+                            const numericDescentValue = this.getDescentValue();
                             
-                            const goDownValue = bestCombo.reduce((sum, card) => sum + card.value, 0);
+                            // First, find valid Go Down combinations
+                            const validGoDownCombos = this.findValidGoDownCombinations(unmatchedCards, numericDescentValue);
                             
-                            // Double-check that the Go Down value is valid
-                            if (goDownValue <= this.getDescentValue()) {
-                                this.debug("Opponent found valid Go Down with value:", goDownValue);
+                            if (validGoDownCombos.length > 0) {
+                                // Use the combination with the highest value (that's still <= descent value)
+                                const bestCombo = validGoDownCombos.sort((a, b) => {
+                                    const valueA = a.reduce((sum, card) => sum + card.value, 0);
+                                    const valueB = b.reduce((sum, card) => sum + card.value, 0);
+                                    return valueB - valueA; // Higher value first
+                                })[0];
                                 
-                                // Get remaining unmatched cards (for discarding one)
-                                const remainingCards = unmatchedCards.filter(card => 
-                                    !bestCombo.includes(card)
-                                );
+                                // Calculate Go Down value and validate one last time
+                                const goDownValue = bestCombo.reduce((sum, card) => sum + card.value, 0);
                                 
-                                if (remainingCards.length > 0) {
-                                    // Discard one card (face down) - choose highest value card to discard
-                                    const cardToDiscard = remainingCards.sort((a, b) => b.value - a.value)[0];
-                                    this.opponent.removeCard(cardToDiscard.id);
-                                    cardToDiscard.faceUp = true;
-                                    this.discardPile.push(cardToDiscard);
+                                // Triple-check that the Go Down value is valid
+                                if (goDownValue <= numericDescentValue) {
+                                    this.debug(`Opponent Go Down validated: ${goDownValue} <= ${numericDescentValue}`);
                                     
-                                    // Handle Go Down with the valid combo
-                                    this.handleOpponentGoDown(bestCombo);
-                                    return;
+                                    // Get remaining unmatched cards (for discarding one)
+                                    const remainingCards = unmatchedCards.filter(card => 
+                                        !bestCombo.some(goDownCard => goDownCard.id === card.id)
+                                    );
+                                    
+                                    if (remainingCards.length > 0) {
+                                        // Discard one card (face down) - choose highest value card to discard
+                                        const cardToDiscard = remainingCards.sort((a, b) => b.value - a.value)[0];
+                                        this.opponent.removeCard(cardToDiscard.id);
+                                        cardToDiscard.faceUp = true;
+                                        this.discardPile.push(cardToDiscard);
+                                        
+                                        // Handle Go Down with the valid combo
+                                        this.handleOpponentGoDown(bestCombo);
+                                        return;
+                                    }
+                                } else {
+                                    this.debug(`CRITICAL ERROR: Invalid Go Down value: ${goDownValue} > ${numericDescentValue}`);
                                 }
                             }
                         }
@@ -1935,38 +1931,43 @@
             findValidGoDownCombinations(cards, maxValue) {
                 this.debug("Finding valid Go Down combinations, maxValue:", maxValue);
                 
-                // Sort cards by value for more efficient combinations
+                // Need to have at least one card left for discard
+                if (cards.length <= 1) {
+                    this.debug("Not enough cards for Go Down - need at least 2 (1 for Go Down, 1 for discard)");
+                    return [];
+                }
+                
+                // Sort cards by value for more efficient combinations (lowest first)
                 const sortedCards = [...cards].sort((a, b) => a.value - b.value);
+                
+                // Debug log all unmatched cards
+                this.debug("Unmatched cards:", sortedCards.map(c => `${c.displayRank}${c.suitSymbol}(${c.value})`));
                 
                 const result = [];
                 
-                // Try single-card combinations first
+                // Try single-card combinations first - a single card must be <= maxValue
                 for (const card of sortedCards) {
                     if (card.value <= maxValue) {
+                        // To Go Down with a single card, we must have at least one other card to discard
                         result.push([card]);
                     }
                 }
                 
-                // Try multi-card combinations
-                for (let size = 2; size <= Math.min(sortedCards.length - 1, 3); size++) {
-                    const generateCombinations = (start, combo, currentSum) => {
-                        if (combo.length === size) {
-                            if (currentSum <= maxValue) {
-                                result.push([...combo]);
-                            }
-                            return;
-                        }
-                        
-                        for (let i = start; i < sortedCards.length; i++) {
-                            if (currentSum + sortedCards[i].value <= maxValue) {
-                                combo.push(sortedCards[i]);
-                                generateCombinations(i + 1, combo, currentSum + sortedCards[i].value);
-                                combo.pop();
-                            }
-                        }
-                    };
+                // Try multi-card combinations (if we have enough cards)
+                if (sortedCards.length > 2) { // Need at least 3 cards (1+ for Go Down, 1 for discard)
+                    this.generateGoDownCombinations(sortedCards, maxValue, result);
+                }
+                
+                // Double-check every combination
+                for (let i = result.length - 1; i >= 0; i--) {
+                    const combo = result[i];
+                    const totalValue = combo.reduce((sum, card) => sum + card.value, 0);
                     
-                    generateCombinations(0, [], 0);
+                    // Make sure the value is actually <= maxValue
+                    if (totalValue > maxValue) {
+                        this.debug(`Removing invalid combo with value ${totalValue} > ${maxValue}`);
+                        result.splice(i, 1);
+                    }
                 }
                 
                 // Log the valid combinations found
@@ -1982,6 +1983,37 @@
                 }
                 
                 return result;
+            }
+
+            // Helper method for generating combinations
+            generateGoDownCombinations(cards, maxValue, result) {
+                const stack = [];
+                
+                const backtrack = (start, currentSum) => {
+                    // Base case: if we've selected enough cards
+                    if (stack.length >= 2) {
+                        if (currentSum <= maxValue) {
+                            result.push([...stack]);
+                        }
+                        // Stop if we've used most of the cards (need to keep at least 1 for discard)
+                        if (stack.length >= cards.length - 1) {
+                            return;
+                        }
+                    }
+                    
+                    // Try each card from the current position
+                    for (let i = start; i < cards.length; i++) {
+                        const newSum = currentSum + cards[i].value;
+                        // Only continue if adding this card keeps us under maxValue
+                        if (newSum <= maxValue) {
+                            stack.push(cards[i]);
+                            backtrack(i + 1, newSum);
+                            stack.pop();
+                        }
+                    }
+                };
+                
+                backtrack(0, 0);
             }
 
             // Get the numeric value of the descent card
@@ -2442,11 +2474,11 @@
                 // Calculate the Go Down value
                 const goDownValue = goDownCards.reduce((sum, card) => sum + card.value, 0);
                 
-                // CRITICAL: Validate the Go Down value
+                // TRIPLE-CHECK: Validate the Go Down value
                 const descentValue = this.getDescentValue();
                 if (goDownValue > descentValue) {
                     this.debug("ERROR: Invalid opponent Go Down value exceeds Descent card value", 
-                               {goDownValue, descentValue});
+                               {goDownValue, descentValue, cards: goDownCards.map(c => `${c.displayRank}${c.suitSymbol}`)});
                     
                     // Force the opponent to discard a card instead
                     this.isPlayerTurn = true;
@@ -2463,10 +2495,12 @@
                 // Check for Go Bust condition
                 const playerUnmatchedValue = this.player.getUnmatchedCardsValue();
                 
-                this.debug("Opponent Go Down check:", {
+                this.debug("Opponent Go Down:", {
                     goDownValue,
+                    descentValue,
                     playerUnmatchedValue,
-                    goBust: playerUnmatchedValue <= goDownValue
+                    goBust: playerUnmatchedValue <= goDownValue,
+                    goDownCards: goDownCards.map(c => `${c.displayRank}${c.suitSymbol}(${c.value})`)
                 });
                 
                 if (playerUnmatchedValue <= goDownValue) {
